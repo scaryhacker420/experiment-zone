@@ -1,7 +1,6 @@
-player = Workspace.Player_Orientation_References.robnox995.Name
-for i,v in pairs(players) do 
-  player = v.name
-  break 
+player = 'robnox995'
+if Workspace.Player_Orientation_References then 
+  player = nil
 end
 frame = Workspace.NPCS.Eloise.HumanoidRootPart.CFrame
 frame2 = CFrame.new(Vector3.new(0.0,100.0,0.0))
