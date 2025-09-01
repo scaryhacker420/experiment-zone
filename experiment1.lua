@@ -1,5 +1,5 @@
 player = 'robnox995'
-if Workspace.Player_Orientation_References then 
+if not Workspace.Player_Orientation_References then 
   player = Workspace.Player_Orientation_References:GetChildren()[1].Name
 end
 frame = Workspace.NPCS.Eloise.HumanoidRootPart.CFrame
