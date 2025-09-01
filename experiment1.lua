@@ -1,5 +1,4 @@
-players = Workspace.Player_Orientation_References:GetChildren()
-player = nil
+player = Workspace.Player_Orientation_References.robnox995.Name
 for i,v in pairs(players) do 
   player = v.name
   break 
