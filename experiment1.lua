@@ -13,8 +13,8 @@ end
 local theplants = player_farm.Important.Plants_Physical
 
 function attributeMatch(obj,pos,neg)
-	local pos = pos or {}
-	local neg = neg or {}
+	pos = pos or {}
+	neg = neg or {}
 	for _,attr in ipairs(pos) do 
 		if not obj:GetAttribute(attr) then
 			return false
@@ -27,7 +27,6 @@ function attributeMatch(obj,pos,neg)
 	end
 	return true
 end
-
 
 function getTrees(output_table,tree_names) 
 	local name_map = {}
@@ -84,16 +83,30 @@ function collectFruits(fruits,limit)
 	limit = limit or 999999999
 	local count = 0
 	for _,fruit in ipairs(fruits) do 
-		for _,fruit_part in ipairs(fruit:GetChildren()) do 
-			if fruit_part:IsA('Part') and fruit_part:FindFirstChildOfClass('ProximityPrompt') then 
-				fireproximityprompt(fruit_part.ProximityPrompt)
-				break
-			end
-		end
-		
-				
+		game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer({fruit})
 		count = count + 1
 		if count >= limit then return end
+	end
+end
+
+function collectFruitsBatched(fruits,batchsize,limit)
+	batchsize = batchsize or 10
+	limit = limit or 999999999
+	local count = 0
+	local batch = {}
+	for _,fruit in ipairs(fruits) do 
+		table.insert(batch,fruit)
+		if #batch >= batchsize then
+			game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(batch)
+			batch = {}
+		end
+		count = count + 1
+		if count >= limit then 
+			if batch[1] then
+				game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(batch)
+			end
+			return 
+		end
 	end
 end
 	
