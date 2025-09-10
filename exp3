@@ -1,0 +1,57 @@
+local trees = {}
+local fruits = {}
+local grownfruit = {}
+local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Peper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco'}
+local singleharvest = {'Bamboo','Mushroom','Orange Tulip','Daffodil','Watermelon','Pumpkin'}
+local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+local Players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local user = Players.LocalPlayer.Name 
+local player_farm
+for _,farm in pairs(workspace.Farm:GetChildren()) do
+	if farm.Important.Data.Owner.Value == user then
+		player_farm = farm
+		break
+	end
+end
+local theplants = player_farm.Important.Plants_Physical 
+
+local function addmap(outputmap,inputordered)
+  for _,v in ipairs(inputordered) do 
+  	outputmap[v] = true
+  end
+end
+local multiharvest_map = {}
+local singleharvest_map = {}
+addmap(multiharvest_map,multiharvest)
+addmap(singleharvest_map,singleharvest)
+
+local function addfruit(fruit)
+	if not fruits[frut.Name] then fruits[fruit.Name] = {} end
+	self = {} 
+	self.instance = fruit
+	self.dc = fruit.AncestryChanged:Connect(function(child, parent)
+        if not parent then
+			for _,v in pairs(fruits[child.Name][child]) do
+				v:Disconnect()
+			end
+          	fruits[child.Name][child] = nil
+        end
+    end)
+	self.grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
+		game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer({self.instance})
+	end) 
+	fruits[fruit.Name][fruit] = self
+end
+
+local farmlistener = theplants.ChildAdded:Connect(function(child)
+	if singleharvest_map[child.Name] then addfruit(child)
+  	elseif multiharvest_map[child.Name] then addtree(child)
+	end
+end)
+local run
+run = RunService.Heartbeat:Connect(function(dt)
+	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() return end
+	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
+end))
