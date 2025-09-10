@@ -36,15 +36,20 @@ local function addfruit(fruit)
 				v:Disconnect()
 			end
           	fruits[child.Name][child] = nil
-			if grownfrut[child.Name] then
-				grownfrut[child.Name][child] = nil
+			if grownfruit[child.Name] then
+				grownfruit[child.Name][child] = nil
 			end
         end
     end)
-	fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
+	if fruit:GetAttribute('DoneGrowTime') then
 		if not grownfruit[fruit.Name] then grownfruit[fruit.Name] = {} end
-		grownfruit[fruit.Name][frut] = true
-	end) 
+		grownfruit[fruit.Name][fruit] = true
+	else
+		fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
+			if not grownfruit[fruit.Name] then grownfruit[fruit.Name] = {} end
+			grownfruit[fruit.Name][fruit] = true
+		end) 
+	end
 end
 
 local function addtree(tree)
@@ -60,9 +65,6 @@ local function addtree(tree)
     end) 
 	trees[tree.Name][tree].newfruit = tree.Fruits.ChildAdded:Connect(function(frut)
 		addfruit(frut)
-        if frut:GetAttribute('DoneGrowTime') then
-			if not grownfruit[frut.Name] then grownfruit[frut.Name] = {} end
-		end
     end) 
 end
 	
@@ -103,8 +105,8 @@ function attributeMatch(obj,pos,neg)
 	return true
 end
 
-function findFirstMutatedFruitsInList(list,pos_muts,neg_muts)
-	for _,fruit in ipairs(list) do 
+function findFirstMutatedFruitsInDic(dic,pos_muts,neg_muts)
+	for fruit in pairs(dic) do 
 		if attributeMatch(fruit,pos_muts,neg_muts) then
 			return fruit
 		end 
@@ -144,24 +146,28 @@ local function findspray()
   return false
 end 
 
-
-
 local function spray(fruit)
 	if not glimspray then if not findspray() then return 'no' end end
 	glimspray.Parent = workspace[user]
 	game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("SprayService_RE"):FireServer('TrySpray',fruit)
+	
+	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 444
 end
 
 local function diconec()
 	farmlistener:Disconnect()
-	for _,tree in pairs(trees) do
-		for _,v in pairs(tree) do
-			v:Disconnect()
+	for _,type in pairs(trees) do
+		for _,obj in pairs(type) do
+			for _,v in pairs(obj) do
+				v:Disconnect()
+			end
 		end
 	end
-	for _,fruit in pairs(fruits) do
-		for _,v in pairs(fruit) do
-			v:Disconnect()
+	for _,type in pairs(fruits) do
+		for _,obj in pairs(type) do
+			for _,v in pairs(obj) do
+				v:Disconnect()
+			end
 		end
 	end
 	if glimspraytracker then glimspraytracker:Disconnect() end
@@ -175,23 +181,33 @@ run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() diconec() return end
 	--Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
 	if (os.clock() - cycle_last) > cycle_length then
-			Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() 
+		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() 
 		local count = 0
-		if fruits['Pumpkin'] then
-			for i in pairs(fruits['Pumpkin']) do count = count + 1 end
-			Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count
+		for _,v in pairs(multiharvest) do
+			if not fruits[v] then Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = v break end
 		end
 		cycle_last = os.clock()
 		local data = DataService:GetData()
 		local tocollectglim = {}
 		local tocollect = {}
+		for _,v in ipairs(data.FairyQuests.Containers) do
+				local quest = data.QuestContainers[v].Quests[1]
+			if quest.Arguments[2] and (not quest.Completed) and grownfruit[quest.Arguments[1] ] and next(grownfruit[quest.Arguments[1] ]) then
+				local glimfruit = findFirstMutatedFruitsInDic(grownfruit[quest.Arguments[1] ],{'Glimmering'})
+				if glimfruit then 
+					table.insert(tocollect,glimfruit)
+				else
+					table.insert(tocollectglim,table.pack(next(grownfruit[quest.Arguments[1] ]))[1])
+				end
+			end
+		end	
 		for _,v in ipairs(tocollectglim) do
+				Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 333
 			if spray(v) ~= 'no' then
 				table.insert(tocollect,v)
 			end
 		end
 		collectFruits(tocollect)
-		
 	end
 end)
 
