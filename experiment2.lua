@@ -1,7 +1,7 @@
 local trees = {}
 local fruits = {}
 local grownfruit = {}
-local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Peper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco'}
+local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Pepper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco'}
 local singleharvest = {'Bamboo','Mushroom','Orange Tulip','Daffodil','Watermelon','Pumpkin','Carrot'}
 local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
 local Players = game:GetService("Players")
@@ -86,6 +86,7 @@ for _,child in ipairs(theplants:GetChildren()) do
 	end 
 end
 
+
 function attributeMatch(obj,pos,neg)
 	pos = pos or {}
 	neg = neg or {}
@@ -167,18 +168,19 @@ local function diconec()
 end 
 
 local cycle_last = 0.0
-local cycle_length = 2.5
+local cycle_length = 2.0
 local run
+
 run = RunService.Heartbeat:Connect(function(dt)
-	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() return end
+	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() diconec() return end
 	--Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
 	if (os.clock() - cycle_last) > cycle_length then
 			Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() 
 		local count = 0
-			if grownfruit['Pepper'] then
-		for i in pairs(grownfruit['Pepper']) do count = count + 1 end
-		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count
-			end
+		if fruits['Pumpkin'] then
+			for i in pairs(fruits['Pumpkin']) do count = count + 1 end
+			Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count
+		end
 		cycle_last = os.clock()
 		local data = DataService:GetData()
 		local tocollectglim = {}
