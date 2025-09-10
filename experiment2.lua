@@ -60,20 +60,20 @@ function collectFruits(fruits,limit)
 end
 
 local glimspray
-function findspray()
-  for _,v in pairs(Players.LocalPlayer.Backpack:GetChildren())
+function findspray() 
+  for _,v in ipairs(Players.LocalPlayer.Backpack:GetChildren()) do
     if v:GetAttribute('l') == 'Mutation Spray' and v:GetAttribute('m') == 'Glimmering' then glimspray = v return true end
   end
-  for _,v in pairs(workspace[user]:GetChildren())
+  for _,v in ipairs(workspace[user]:GetChildren()) do
     if v:GetAttribute('l') == 'Mutation Spray' and v:GetAttribute('m') == 'Glimmering' then glimspray = v return true end
   end
   return false
-end
+end 
 
 function spray(fruit)
   if not glimspray then if not findspray() then return end end
   glimspray.Parent = workspace[user]
-  game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("SprayService_RE"):FireServer({'TrySpray',fruit})
+  game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("SprayService_RE"):FireServer('TrySpray',fruit)
 end
 
 
@@ -82,8 +82,8 @@ run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() return end
 	local data = DataService:GetData()
 	for i in pairs(fruits) do 
-    spray(i)
-  end
+    	spray(i)
+  	end
 	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
 end)
 
