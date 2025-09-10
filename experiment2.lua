@@ -2,7 +2,7 @@ local trees = {}
 local fruits = {}
 local grownfruit = {}
 local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Peper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco'}
-local singleharvest = {'Bamboo','Mushroom','Orange Tulip','Daffodil','Watermelon','Pumpkin'}
+local singleharvest = {'Bamboo','Mushroom','Orange Tulip','Daffodil','Watermelon','Pumpkin','Carrot'}
 local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
 local Players = game:GetService("Players")
 local workspace = game:GetService("Workspace")
@@ -28,7 +28,7 @@ addmap(multiharvest_map,multiharvest)
 addmap(singleharvest_map,singleharvest)
 
 local function addfruit(fruit)
-	if not fruits[frut.Name] then fruits[fruit.Name] = {} end
+	if not fruits[fruit.Name] then fruits[fruit.Name] = {} end
 	fruits[fruit.Name][fruit] = {} 
 	fruits[fruit.Name][fruit].dc = fruit.AncestryChanged:Connect(function(child, parent)
         if not parent then
@@ -36,49 +36,54 @@ local function addfruit(fruit)
 				v:Disconnect()
 			end
           	fruits[child.Name][child] = nil
-			grownfrut[child.Name][child] = nil
+			if grownfrut[child.Name] then
+				grownfrut[child.Name][child] = nil
+			end
         end
     end)
 	fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
 		if not grownfruit[fruit.Name] then grownfruit[fruit.Name] = {} end
-		grownfruit[fruit.Name][frut] = 1
+		grownfruit[fruit.Name][frut] = true
 	end) 
 end
 
 local function addtree(tree)
-	if not fruits[tree.Name] then fruits[tree.Name] = {} end
+	if not trees[tree.Name] then trees[tree.Name] = {} end
 	trees[tree.Name][tree] = {}
 	trees[tree.Name][tree].dc = tree.AncestryChanged:Connect(function(child, parent)
         if not parent then
-			for _,v in pairs(trees[tree.Name][child]) do
+			for _,v in pairs(trees[child.Name][child]) do
 				v:Disconnect()
 			end
-          	trees[tree.Name][tree] = nil
+          	trees[child.Name][child] = nil
         end
-    end)--[[
+    end) 
 	trees[tree.Name][tree].newfruit = tree.Fruits.ChildAdded:Connect(function(frut)
-		addfruit(child)
-        if :GetAttribute('DoneGrowTime') then
+		addfruit(frut)
+        if frut:GetAttribute('DoneGrowTime') then
 			if not grownfruit[frut.Name] then grownfruit[frut.Name] = {} end
-			grownfruit[frut.Name][frut] = 1
 		end
-    end) ]]
+    end) 
 end
-	--[[
+	
 local farmlistener = theplants.ChildAdded:Connect(function(child)
 	if singleharvest_map[child.Name] then addfruit(child)
   	elseif multiharvest_map[child.Name] then addtree(child)
 	end
 end)
 
-for _,child in ipairs(theplants.GetChildren()) do
-	if singleharvest_map[child.Name] then addfruit(child)
-	elseif multiharvest_map[child.Name] then 
+
+
+for _,child in ipairs(theplants:GetChildren()) do
+	
+	if singleharvest_map[child.Name] then 
+		addfruit(child)
+	elseif multiharvest_map[child.Name] then
 		addtree(child)
-		for _,frut in ipairs(child.Fruits.GetChildren()) do
+		for _,frut in ipairs(child.Fruits:GetChildren()) do
 			addfruit(frut)
 		end
-	end
+	end 
 end
 
 function attributeMatch(obj,pos,neg)
@@ -114,11 +119,21 @@ function collectFruits(fruits,limit)
 		if count >= limit then return end
 	end
 end
-]]
+
 
 local glimspray
 local glimspraytracker
-function findspray() 
+local function saveglimspray(g)
+	glimspray = g
+	glimspraytracker = g.AncestryChanged:Connect(function(child, parent)
+        if not parent then
+			glimspraytracker:Disconnect()
+          	glimspraytracker = nil
+			glimspray = nil
+		end
+	end)
+end
+local function findspray() 
   for _,v in ipairs(Players.LocalPlayer.Backpack:GetChildren()) do
     if v:GetAttribute('l') == 'Mutation Spray' and v:GetAttribute('m') == 'Glimmering' then saveglimspray(v) return true end
   end
@@ -128,30 +143,42 @@ function findspray()
   return false
 end 
 
-function saveglimspray(g)
-	glimspray = g
-	glimspraytracker = t.AncestryChanged:Connect(function(child, parent)
-        if not parent then
-			glimspraytracker:Disconnect()
-          	glimspraytracker = nil
-			glimspray = nil
-		end
-	end)
-end
 
-function spray(fruit)
+
+local function spray(fruit)
 	if not glimspray then if not findspray() then return 'no' end end
 	glimspray.Parent = workspace[user]
 	game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("SprayService_RE"):FireServer('TrySpray',fruit)
 end
 
-local cycle_last = 0
-local cycle_length = 4
+local function diconec()
+	farmlistener:Disconnect()
+	for _,tree in pairs(trees) do
+		for _,v in pairs(tree) do
+			v:Disconnect()
+		end
+	end
+	for _,fruit in pairs(fruits) do
+		for _,v in pairs(fruit) do
+			v:Disconnect()
+		end
+	end
+	if glimspraytracker then glimspraytracker:Disconnect() end
+end 
+
+local cycle_last = 0.0
+local cycle_length = 2.5
 local run
 run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() return end
-	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
-	if os.clock() - cycle_last > cycle_length then
+	--Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
+	if (os.clock() - cycle_last) > cycle_length then
+			Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() 
+		local count = 0
+			if grownfruit['Pepper'] then
+		for i in pairs(grownfruit['Pepper']) do count = count + 1 end
+		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count
+			end
 		cycle_last = os.clock()
 		local data = DataService:GetData()
 		local tocollectglim = {}
@@ -162,6 +189,7 @@ run = RunService.Heartbeat:Connect(function(dt)
 			end
 		end
 		collectFruits(tocollect)
+		
 	end
 end)
 
