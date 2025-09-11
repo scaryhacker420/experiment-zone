@@ -1,7 +1,7 @@
 local trees = {}
 local fruits = {}
 local grownfruit = {}
-local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Pepper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco'}
+local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Pepper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco','Sunbulb','Lightshoot','Glowthorn'}
 local singleharvest = {'Bamboo','Mushroom','Orange Tulip','Daffodil','Watermelon','Pumpkin','Carrot'}
 local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
 local Players = game:GetService("Players")
@@ -190,6 +190,11 @@ run = RunService.Heartbeat:Connect(function(dt)
 		local data = DataService:GetData()
 		local tocollectglim = {}
 		local tocollect = {}
+		for _,v in ipairs({'Mango','Sunbulb','Lightshoot','Glowthorn'}) do
+			if grownfruit[v] then
+				table.insert(tocollect,table.pack(next(grownfruit[v]))[1])
+			end
+		end
 		for _,v in ipairs(data.FairyQuests.Containers) do
 				local quest = data.QuestContainers[v].Quests[1]
 			if quest.Arguments[2] and (not quest.Completed) and grownfruit[quest.Arguments[1] ] and next(grownfruit[quest.Arguments[1] ]) then
