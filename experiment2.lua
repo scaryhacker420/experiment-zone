@@ -187,10 +187,13 @@ run = RunService.Heartbeat:Connect(function(dt)
 	if (os.clock() - cycle_last) > cycle_length then
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() --[[
 		local count = 0
-		for i in pairs(grownfruit['Bamboo']) do count = count + 1 end Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count
+		for i in pairs(grownfruit['Bamboo']) do count = count + 1 end Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count]]
 		for _,v in ipairs(multiharvest) do
 			if not grownfruit[v] then Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = v break end
-		end]]
+		end
+		for _,v in ipairs(singleharvest) do
+			if not grownfruit[v] then Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = v break end
+			end
 		cycle_last = os.clock()
 		local data = DataService:GetData()
 		local tocollectglim = {}
