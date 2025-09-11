@@ -90,6 +90,7 @@ end
 
 
 function attributeMatch(obj,pos,neg)
+	if obj:GetAttribute('Favorited') == true then return false end
 	pos = pos or {}
 	neg = neg or {}
 	for _,attr in ipairs(pos) do 
@@ -150,8 +151,6 @@ local function spray(fruit)
 	if not glimspray then if not findspray() then return 'no' end end
 	glimspray.Parent = workspace[user]
 	game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("SprayService_RE"):FireServer('TrySpray',fruit)
-	
-	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 444
 end
 
 local function diconec()
@@ -174,29 +173,30 @@ local function diconec()
 end 
 
 local cycle_last = 0.0
-local cycle_length = 2.0
+local cycle_length = 2.3
 local run
 
 run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() diconec() return end
 	--Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock()
 	if (os.clock() - cycle_last) > cycle_length then
-		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() 
+		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.clock() --[[
 		local count = 0
-		for _,v in pairs(multiharvest) do
-			if not fruits[v] then Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = v break end
-		end
+		for i in pairs(grownfruit['Bamboo']) do count = count + 1 end Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = count
+		for _,v in ipairs(multiharvest) do
+			if not grownfruit[v] then Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = v break end
+		end]]
 		cycle_last = os.clock()
 		local data = DataService:GetData()
 		local tocollectglim = {}
 		local tocollect = {}
-		for _,v in ipairs({'Mango','Sunbulb','Lightshoot','Glowthorn'}) do
+		for _,v in ipairs({'Sunbulb','Lightshoot','Glowthorn'}) do
 			if grownfruit[v] then
 				table.insert(tocollect,table.pack(next(grownfruit[v]))[1])
 			end
 		end
 		for _,v in ipairs(data.FairyQuests.Containers) do
-				local quest = data.QuestContainers[v].Quests[1]
+			local quest = data.QuestContainers[v].Quests[1]
 			if quest.Arguments[2] and (not quest.Completed) and grownfruit[quest.Arguments[1] ] and next(grownfruit[quest.Arguments[1] ]) then
 				local glimfruit = findFirstMutatedFruitsInDic(grownfruit[quest.Arguments[1] ],{'Glimmering'})
 				if glimfruit then 
@@ -207,7 +207,6 @@ run = RunService.Heartbeat:Connect(function(dt)
 			end
 		end	
 		for _,v in ipairs(tocollectglim) do
-				Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 333
 			if spray(v) ~= 'no' then
 				table.insert(tocollect,v)
 			end
