@@ -149,6 +149,11 @@ end
 
 local function spray(fruit)
 	if not glimspray then if not findspray() then return 'no' end end
+	for _,v in ipairs(workspace[user]:GetChildren()) do
+		if v.ClassName == 'Tool' then
+			v.Parent = Players.LocalPlayer.Backpack
+		end
+	end
 	glimspray.Parent = workspace[user]
 	game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("SprayService_RE"):FireServer('TrySpray',fruit)
 end
@@ -173,7 +178,7 @@ local function diconec()
 end 
 
 local cycle_last = 0.0
-local cycle_length = 2.3
+local cycle_length = 1.8
 local run
 
 run = RunService.Heartbeat:Connect(function(dt)
@@ -211,7 +216,7 @@ run = RunService.Heartbeat:Connect(function(dt)
 		end	
 		for _,v in ipairs(tocollectglim) do
 			if spray(v) ~= 'no' then
-				table.insert(tocollect,v)
+				--table.insert(tocollect,v)
 			end
 		end
 		collectFruits(tocollect)
