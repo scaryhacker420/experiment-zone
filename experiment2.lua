@@ -202,7 +202,10 @@ run = RunService.Heartbeat:Connect(function(dt)
 				if glimfruit then 
 					table.insert(tocollect,glimfruit)
 				else
-					table.insert(tocollectglim,table.pack(next(grownfruit[quest.Arguments[1] ]))[1])
+					local notglimfruit = findFirstMutatedFruitsInDic(grownfruit[quest.Arguments[1] ])
+					if notglimfruit then 
+						table.insert(tocollectglim,notglimfruit)
+					end
 				end
 			end
 		end	
