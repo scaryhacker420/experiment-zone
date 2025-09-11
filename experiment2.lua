@@ -41,11 +41,12 @@ local function addfruit(fruit)
 			end
         end
     end)
-	if fruit:GetAttribute('DoneGrowTime') then
+	if fruit:GetAttribute('DoneGrowTime') and fruit:GetAttribute('Favorited') ~= true then
 		if not grownfruit[fruit.Name] then grownfruit[fruit.Name] = {} end
 		grownfruit[fruit.Name][fruit] = true
 	else
 		fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
+			if fruit:GetAttribute('Favorited') == true then return end
 			if not grownfruit[fruit.Name] then grownfruit[fruit.Name] = {} end
 			grownfruit[fruit.Name][fruit] = true
 		end) 
