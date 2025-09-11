@@ -1,7 +1,7 @@
 local trees = {}
 local fruits = {}
 local grownfruit = {}
-local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Pepper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawbery','Romanesco','Sunbulb','Lightshoot','Glowthorn'}
+local multiharvest = {'Strawberry','Blueberry','Tomato','Corn','Apple','Coconut','Cactus','Dragon Fruit','Mango','Grape','Pepper','Cacao','Beanstalk','Ember Lily','Sugar Apple','Burning Bud','Giant Pinecone','Elder Strawberry','Romanesco','Sunbulb','Lightshoot','Glowthorn'}
 local singleharvest = {'Bamboo','Mushroom','Orange Tulip','Daffodil','Watermelon','Pumpkin','Carrot'}
 local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
 local Players = game:GetService("Players")
