@@ -1,4 +1,4 @@
-game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'b'
+game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'a'
 local function getlf()
 	if game:GetService("Workspace").Interaction and
 	game:GetService("Workspace").Interaction.UpdateItems and
@@ -23,12 +23,15 @@ end
 
 local growabledata = require(game:GetService("ReplicatedStorage").Data.GrowableData):GetAllPlantData()
 local traitsdata = require(game:GetService("ReplicatedStorage").Modules.PlantTraitsData).Traits
-
 local shvst_map = {}
 local mhvst_map = {}
 for i,v in pairs(growabledata) do
 	if v.PlantData.GrowFruitTime then
-		mhvst_map[i] = true
+		if i == 'Mandrake' then
+			shvst_map[i] = true
+		else
+			mhvst_map[i] = true
+		end
 	else
 		shvst_map[i] = true
 	end
@@ -62,7 +65,6 @@ local theplants = player_farm.Important.Plants_Physical
 for i in pairs(traitsdata) do 
   sorted_fruits[i] = {}
 end
-
 
 
 local function remove_fruit_from_sorted_list(fruit)
@@ -128,7 +130,7 @@ local farmlistener = theplants.ChildAdded:Connect(function(child)
     	elseif mhvst_map[child.Name] then addtree(child)
   	end
   end
-end)
+end) 
 
 for _,child in ipairs(theplants:GetChildren()) do
   if trait_map[child.Name] then
@@ -143,6 +145,7 @@ for _,child in ipairs(theplants:GetChildren()) do
   end
 end
 
+game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '111'
 local function diconec()
 	farmlistener:Disconnect()
 	for _,t in pairs(trees) do
@@ -162,7 +165,6 @@ local function diconec()
 end 
 
 
-game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '111'
 
 
 function get_fruit_from_table(t,n,output)
