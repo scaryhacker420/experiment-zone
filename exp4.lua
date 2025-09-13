@@ -1,23 +1,22 @@
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'a'
-local function getlf()
-	if game:GetService("Workspace").Interaction and
+local trait_label
+local progress_label
+if game:GetService("Workspace").Interaction and
 	game:GetService("Workspace").Interaction.UpdateItems and
 	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"] and
 	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel then
-		local _,s = game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel.Text:find('FFF\">',nil,true)
-		if s then
-			local f,_ = game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel.Text:find(' Plants',s,true)
-			if f then
-				return game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel.Text:sub(s+1,f-1)
-			end
+	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly then
+	trait_label = game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel
+	progress_label = workspace.Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.ProgressPart.ProgressBilboard.UpgradeBar.ProgressionLabel
+else error() 
+end
+local function getlf()
+	local _,s = trait_label.Text:find('FFF\">',nil,true)
+	if s then
+		local f,_ = trait_label.Text:find(' Plants',s,true)
+		if f then
+			return trait_label.Text:sub(s+1,f-1)
 		end
-		
 	end
 end
 
@@ -205,12 +204,12 @@ run = RunService.Heartbeat:Connect(function(dt)
     local reqtrait = getlf()
     if reqtrait and sorted_fruits[reqtrait] then
       Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 300 - os.time() + data.FallMarket.LastRewardClaimedTime .. ' ' .. reqtrait .. ' ' .. getdsize(sorted_fruits[reqtrait])
-  		if os.time() - data.FallMarket.LastRewardClaimedTime > 300 then
-        local frutbatch = {}
-        get_fruit_from_table(sorted_fruits[reqtrait],10,frutbatch)
-        collect_fruit_batch(frutbatch)
-        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("FallMarketEvent"):WaitForChild("SubmitAllPlants"):FireServer()
-      end
+  		if not progress_label.Text:find('Cooldown') then
+	        local frutbatch = {}
+	        get_fruit_from_table(sorted_fruits[reqtrait],10,frutbatch)
+	        collect_fruit_batch(frutbatch)
+	        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("FallMarketEvent"):WaitForChild("SubmitAllPlants"):FireServer()
+	      end
     else
       Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = os.time() - data.FallMarket.LastRewardClaimedTime
     end
