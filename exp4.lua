@@ -204,7 +204,7 @@ run = RunService.Heartbeat:Connect(function(dt)
     local reqtrait = getlf()
     if reqtrait and sorted_fruits[reqtrait] then
       Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 300 - os.time() + data.FallMarket.LastRewardClaimedTime .. ' ' .. reqtrait .. ' ' .. getdsize(sorted_fruits[reqtrait])
-  		if not progress_label.Text:find('Cooldown') then
+  		if not progress_label.Text:find('Cooldown') and (os.time() - 300) > data.FallMarket.LastRewardClaimedTime then
 	        local frutbatch = {}
 	        get_fruit_from_table(sorted_fruits[reqtrait],10,frutbatch)
 	        collect_fruit_batch(frutbatch)
