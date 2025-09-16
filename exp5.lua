@@ -55,7 +55,7 @@ local theplants = player_farm.Important.Plants_Physical
 
 
 
-
+game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '111'
 local function remove_fruit_from_sorted_list(fruit)
   if sorted_fruits_map[fruit] then
     for _,v in ipairs(sorted_fruits_map[fruit]) do
@@ -112,24 +112,32 @@ local function addtree(tree)
     addfruit(frut)
   end
 end
-	
-local farmlistener = theplants.ChildAdded:Connect(function(child)
-  if trees[child.Name] then addtree(child) 
-    elseif fruits[child.Name] then addfruit(child)
-  end
-end) 
 
-for _,child in ipairs(theplants:GetChildren()) do
-  if trees[child.Name] then 
-    addtree(child)
-  elseif fruits[child.Name] then
-    addfruit(child)
-  end 
+local farmlistener
+
+function start_farm_listener()
+	farmlistener = theplants.ChildAdded:Connect(function(child)
+		if trees[child.Name] then 
+			addtree(child) 
+		elseif fruits[child.Name] then 
+			addfruit(child)
+		end
+	end) 
+	for _,child in ipairs(theplants:GetChildren()) do
+		if trees[child.Name] then 
+			addtree(child)
+		elseif fruits[child.Name] then 
+			addfruit(child)
+		end 
+	end
 end
 
-game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '111'
-local function diconec()
-  farmlistener:Disconnect()
+
+function diconec_farm_listener()
+	if farmlistener then
+		farmlistener:Disconnect()
+		farmlistener = nil
+	end
 	for _,t in pairs(trees) do
 		for _,obj in pairs(t) do
 			for _,v in pairs(obj) do
@@ -239,11 +247,19 @@ function auto_rebirth()
   end
 end
 
+
+start_farm_listener()
+game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '222'
 local run
 run = RunService.Heartbeat:Connect(function(dt)
-	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then run:Disconnect() diconec() return end
-  data = DataService:GetData()
-  local s = ''
-  s = s .. do_fall_event()
-  Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = s
+	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then 
+		run:Disconnect() 
+		start_farm_listener() 
+		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
+		return 
+	end
+	data = DataService:GetData()
+	local s = ''
+	s = s .. do_fall_event()
+	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = s
 end)
