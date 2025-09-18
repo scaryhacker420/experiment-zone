@@ -20,14 +20,14 @@ local function getlf()
 	end
 end
 
+
+
 local growabledata = require(game:GetService("ReplicatedStorage").Data.GrowableData):GetAllPlantData()
 local traitsdata = require(game:GetService("ReplicatedStorage").Modules.PlantTraitsData).Traits
 local trees = {}
 local fruits = {}
 local sorted_fruits = {}
 local sorted_fruits_map = {}
-
-
 for i,v in pairs(growabledata) do
   fruits[i] = {}
   sorted_fruits[i] = {}
@@ -36,6 +36,10 @@ for i,v in pairs(growabledata) do
 	end
 end
 
+local inventory_enums = game:GetService("ReplicatedStorage").Data.EnumRegistry.InventoryServiceEnums
+local item_type_enums = game:GetService("ReplicatedStorage").Data.EnumRegistry.ItemTypeEnums
+
+
 
 
 local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
@@ -43,10 +47,10 @@ local data = DataService:GetData()
 local Players = game:GetService("Players")
 local workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local user = Players.LocalPlayer.Name 
+local user = Players.LocalPlayer
 local player_farm
 for _,farm in pairs(workspace.Farm:GetChildren()) do
-	if farm.Important.Data.Owner.Value == user then
+	if farm.Important.Data.Owner.Value == user.Name then
 		player_farm = farm
 		break
 	end
@@ -75,22 +79,30 @@ end
 local function addfruit(fruit)
 	fruits[fruit.Name][fruit] = {} 
 	fruits[fruit.Name][fruit].dc = fruit.AncestryChanged:Connect(function(child, parent)
-    if not parent then
-      remove_fruit_from_sorted_list(child)
-			for _,v in pairs(fruits[child.Name][child]) do
-				v:Disconnect()
-			end
-      fruits[child.Name][child] = nil
-    end
-  end)
-	if fruit:GetAttribute('DoneGrowTime') and fruit:GetAttribute('Favorited') ~= true then
-		sort_fruit(fruit) 
-	else
-		fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
-			if fruit:GetAttribute('Favorited') == true then return end
+	    if not parent then
+	      remove_fruit_from_sorted_list(child)
+				for _,v in pairs(fruits[child.Name][child]) do
+					v:Disconnect()
+				end
+	      fruits[child.Name][child] = nil
+	    end
+  	end)
+	fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('Favorited'):Connect(function()
+		if fruit:GetAttribute('Favorited') == true then remove_fruit_from_sorted_list(fruit) return 
+		end
+		if fruit:GetAttribute('DoneGrowTime') then
 			sort_fruit(fruit)
-      fruit:GetAttributeChangedSignal('DoneGrowTime'):Disconnect()
-		end) 
+		end
+	end)
+	if not fruit:GetAttribute('DoneGrowTime') then
+		fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
+			fruit:GetAttributeChangedSignal('DoneGrowTime'):Disconnect()
+			if fruit:GetAttribute('Favorited') == true then return 
+			end
+			sort_fruit(fruit)
+		end)
+	elseif fruit:GetAttribute('Favorited') ~= true then
+		sort_fruit(fruit) 
 	end
 end
 
@@ -116,6 +128,7 @@ end
 local farmlistener
 
 function start_farm_listener()
+	diconec_farm_listener()
 	farmlistener = theplants.ChildAdded:Connect(function(child)
 		if trees[child.Name] then 
 			addtree(child) 
@@ -131,7 +144,6 @@ function start_farm_listener()
 		end 
 	end
 end
-
 
 function diconec_farm_listener()
 	if farmlistener then
@@ -153,6 +165,24 @@ function diconec_farm_listener()
 		end
 	end
 end 
+
+
+local inventory_listener
+local inventory_items = {}
+local grouped_items = {}
+
+local function disconec_inventory_listener()
+
+end
+
+local function start_inventry_listener()
+end
+
+local function add_inv_listener_group()
+
+end
+
+local function rm_inv_listener_group()
 
 
 
@@ -252,7 +282,7 @@ start_farm_listener()
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '222'
 local run
 run = RunService.Heartbeat:Connect(function(dt)
-	if workspace[user]:FindFirstChild('Shovel [Destroy Plants]') then 
+	if workspace[user.Name]:FindFirstChild('Shovel [Destroy Plants]') then 
 		run:Disconnect() 
 		start_farm_listener() 
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
