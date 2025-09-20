@@ -6,7 +6,7 @@ local workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local user = Players.LocalPlayer
 local data = DataService:GetData()
-local tobuy = {'Fall Egg''Space Squirrel','Mallard','Red Panda','Acorn Bell','Acorn Lollipop','Super Leaf Blower','Maple Crate','Fall Seed Pack'}
+local tobuy = {'Fall Egg','Space Squirrel','Mallard','Red Panda','Acorn Bell','Acorn Lollipop','Super Leaf Blower','Maple Crate','Fall Seed Pack'}
 
 local function buyeventshop()
   for _,v in ipairs(tobuy) do
