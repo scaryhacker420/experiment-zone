@@ -95,7 +95,7 @@ local function addfruit(fruit)
 	end)
 	if not fruit:GetAttribute('DoneGrowTime') then
 		fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
-			fruit[fruit.Name].grown:Disconnect()
+			fruits[fruit.Name].grown:Disconnect()
 			if fruit:GetAttribute('Favorited') == true then return 
 			end
 			sort_fruit(fruit)
