@@ -283,7 +283,7 @@ local run
 run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user.Name]:FindFirstChild('Shovel [Destroy Plants]') then 
 		run:Disconnect() 
-		start_farm_listener() 
+		disconec_farm_listener() 
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
