@@ -86,7 +86,7 @@ local function addfruit(fruit)
 	      fruits[child.Name][child] = nil
 	    end
   	end)
-	fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('Favorited'):Connect(function()
+	fruits[fruit.Name][fruit].fav = fruit:GetAttributeChangedSignal('Favorited'):Connect(function()
 		if fruit:GetAttribute('Favorited') == true then remove_fruit_from_sorted_list(fruit) return 
 		end
 		if fruit:GetAttribute('DoneGrowTime') then
@@ -95,7 +95,7 @@ local function addfruit(fruit)
 	end)
 	if not fruit:GetAttribute('DoneGrowTime') then
 		fruits[fruit.Name][fruit].grown = fruit:GetAttributeChangedSignal('DoneGrowTime'):Connect(function()
-			fruit:GetAttributeChangedSignal('DoneGrowTime'):Disconnect()
+			fruit[fruit.Name].grown:Disconnect()
 			if fruit:GetAttribute('Favorited') == true then return 
 			end
 			sort_fruit(fruit)
@@ -170,7 +170,7 @@ local inventory_listener
 local inventory_items = {}
 local grouped_items = {}
 
-local function disconec_inventory_listener()
+local function diconec_inventory_listener()
 
 end
 
@@ -224,7 +224,7 @@ function do_fall_event()
     fall_cycle_last = os.clock()
     local reqtrait = getlf()
     if reqtrait and traitsdata[reqtrait] then
-      if not progress_label.Text:find('Cooldown') then
+      if not progress_label.Text:find('Cooldown') and (300 - os.time() + data.FallMarket.LastRewardClaimedTime) <= 0 then
         local frutbatch = {}
         get_fruit_from_groups(traitsdata[reqtrait],10,frutbatch)
         collect_fruit_batch(frutbatch)
@@ -279,16 +279,18 @@ end
 
 start_farm_listener()
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '222'
+local falloutput = ''
 local run
 run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user.Name]:FindFirstChild('Shovel [Destroy Plants]') then 
 		run:Disconnect() 
-		disconec_farm_listener() 
+		diconec_farm_listener() 
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
 	data = DataService:GetData()
 	local s = ''
-	s = s .. do_fall_event()
+	falloutput = do_fall_event() or falloutput
+	s = s .. falloutput
 	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = s
 end)
