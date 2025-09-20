@@ -224,7 +224,7 @@ function do_fall_event()
     fall_cycle_last = os.clock()
     local reqtrait = getlf()
     if reqtrait and traitsdata[reqtrait] then
-      if not progress_label.Text:find('Cooldown') and (300 -2 - os.time() + data.FallMarket.LastRewardClaimedTime) <= 0 then
+      if not progress_label.Text:find('Cooldown') and (300 - os.time() + data.FallMarket.LastRewardClaimedTime) <= 0 then
         local frutbatch = {}
         get_fruit_from_groups(traitsdata[reqtrait],10,frutbatch)
         collect_fruit_batch(frutbatch)
