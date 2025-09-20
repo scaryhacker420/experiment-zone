@@ -1,13 +1,11 @@
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'a'
 local trait_label
 local progress_label
-if game:GetService("Workspace").Interaction and
-	game:GetService("Workspace").Interaction.UpdateItems and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"] and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform and
-	game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly then
-	trait_label = game:GetService("Workspace").Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel
-	progress_label = workspace.Interaction.UpdateItems["Fall Festival"].FallPlatform.MrOakaly.ProgressPart.ProgressBilboard.UpgradeBar.ProgressionLabel
+if game:GetService("Workspace"):FindFirstChild('Fall Festival') and
+	game:GetService("Workspace")["Fall Festival"]:FindFirstChild('FallPlatform') and
+	game:GetService("Workspace")["Fall Festival"].FallPlatform:FindFirstChild('MrOakaly') then
+	trait_label = game:GetService("Workspace")["Fall Festival"].FallPlatform.MrOakaly.BubblePart.FallMarketBillboard.BG.TraitTextLabel
+	progress_label = workspace["Fall Festival"].FallPlatform.MrOakaly.ProgressPart.ProgressBilboard.UpgradeBar.ProgressionLabel
 else error() 
 end
 local function getlf()
@@ -19,6 +17,7 @@ local function getlf()
 		end
 	end
 end
+game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'b'
 
 
 
@@ -183,7 +182,7 @@ local function add_inv_listener_group()
 end
 
 local function rm_inv_listener_group()
-
+end
 
 
 
