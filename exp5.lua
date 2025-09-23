@@ -358,7 +358,7 @@ local function start_inventry_listener()
 	inventory_items['other'] = {}
 	inv_group_to_listener_names['other'] = {}
 	inventory_listener = user.Backpack.ChildAdded:Connect(function(item)
-		if item_parent_listeners[item] then 
+		if item_parent_listeners[item] then
 			item_parent_listeners[child]:Disconnect()
 			item_parent_listeners[child] = nil
 			remove_item_from_all_groups(child)
