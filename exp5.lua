@@ -20,9 +20,9 @@ end
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'b'
 
 
-
-local growabledata = require(game:GetService("ReplicatedStorage").Data.GrowableData):GetAllPlantData()
-local traitsdata = require(game:GetService("ReplicatedStorage").Modules.PlantTraitsData).Traits
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local growabledata = require(ReplicatedStorage.Data.GrowableData):GetAllPlantData()
+local traitsdata = require(ReplicatedStorage.Modules.PlantTraitsData).Traits
 local trees = {}
 local fruits = {}
 local sorted_fruits = {}
@@ -35,17 +35,19 @@ for i,v in pairs(growabledata) do
 	end
 end
 
-local inventory_enums = game:GetService("ReplicatedStorage").Data.EnumRegistry.InventoryServiceEnums
-local item_type_enums = game:GetService("ReplicatedStorage").Data.EnumRegistry.ItemTypeEnums
+local InventoryEnums = require(ReplicatedStorage.Data.EnumRegistry.InventoryServiceEnums)
+local ItemTypeEnums = require( ReplicatedStorage.Data.EnumRegistry.ItemTypeEnums)
+local PetMutationRegistry = require(ReplicatedStorage.Data.PetRegistry.PetMutationRegistry)
 
 
 
-local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+local DataService = require(ReplicatedStorage.Modules.DataService)
 local data = DataService:GetData()
 local Players = game:GetService("Players")
 local workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local user = Players.LocalPlayer
+local character = user.Character or user.CharacterAdded:Wait()
 local player_farm
 for _,farm in pairs(workspace.Farm:GetChildren()) do
 	if farm.Important.Data.Owner.Value == user.Name then
@@ -245,34 +247,191 @@ local function print_pet_stats(stats)
 	end
 end
 
-local function uneqiup_tools()
-
+local function unequip_tools()
+	for _,v in ipairs(character:GetChildren()) do
+		if v,ClassName == 'Tool' then 
+			v.Parent = user.Backpack
+		end
+	end
 end
 
-local holding_tool = false
-local function hold_tool(tool)
-
+local holding_tool
+local hold_tool_timeout = 0
+local function hold_tool(tool,timeout_time)
+	holding_tool = tool
+	hold_tool_timeout = os.clock() + (timeout_time or 3)
+	local hold = tool.AncestryChanged:Connect(function(child, parent)
+		if os.clock() > hold_tool_timeout then
+			holding_tool = nil
+			hold:Disconnect()
+			return
+		end
+		if parent == user.Backpack then
+			child.Parent = character
+		elseif parent ~= character then
+			holding_tool = nil
+			hold:Disconnect()
+		end
+  	end)
+	local unequip_other_tools = character.ChildAdded:Connect(function(child)
+		if os.clock() > hold_tool_timeout then
+			unequip_other_tools:Disconnect()
+			return
+		end
+		if child.ClassName == 'Tool' then 
+				child.Parent = user.Backpack
+		end
+	end)
+	unequip_tools()
+	tool.Parent = character
 end
 
 local inventory_listener
+local item_parent_listeners = {}
 local inventory_items = {}
-local grouped_items = {}
+local inventory_items_map = {}
+local inv_listeners = {}
+local inv_group_to_listener_names = {}
+
+local function add_item_to_group(item,group)
+	inventory_items[group][item] = true
+	if not inventory_items_map[item] then
+		inventory_items_map[item] = {}
+	end
+	inventory_items_map[item][group] = true
+end
+
+local function rm_item_from_group(item,group)
+	inventory_items[group][item] = nil
+	if inventory_items_map[item] then
+		inventory_items_map[item][group] = nil
+	end
+end
+
+local function remove_item_from_all_groups(item)
+	if not inventory_items_map[item] then return end
+	for group in pairs(inventory_items_map[item]) do
+		inventory_items[group][item] = nil
+	end
+	inventory_items_map[item] = nil
+end
+	
 
 local function diconec_inventory_listener()
+	inventory_listener:Disconnect()
+	for _,v in pairs(item_parent_listeners) do
+		v:Disconnect()
+	end
+	inventory_items = {}
+	inventory_items_map = {}
+	inv_listeners = {}
+	inv_group_to_listener_names = {}
+end
 
+local function create_item_parent_listener(item)
+	return item.AncestryChanged:Connect(function(child, parent)
+		if parent ~= character and parent ~= user.Backpack then
+			item_parent_listeners[child]:Disconnect()
+			item_parent_listeners[child] = nil
+			remove_item_from_all_groups(child)
+		end
+  	end)
+end
+
+local function add_item(item)
+	local type = item:GetAttribute('b')
+	if type == nil or inventory_items[type] == nil then
+		type = 'other'
+	end
+	add_item_to_group(item,type)
+	for i in pairs(inv_group_to_listener_names[type]) do
+		inv_listeners[i].f(item)
+	end
 end
 
 local function start_inventry_listener()
+	if inventory_listener then diconec_inventory_listener() end
+	for _,v in pairs(ItemTypeEnums) do 
+		inventory_items[v] = {}
+		inv_group_to_listener_names[v] = {}
+	end
+	inventory_items['other'] = {}
+	inv_group_to_listener_names['other'] = {}
+	inventory_listener = user.Backpack.ChildAdded:Connect(function(item)
+		if item_parent_listeners[item] then return end
+		item_parent_listeners[item] = create_item_parent_listener(item)
+		add_item(item)
+	end)
+	for _,item in ipairs(user.Backpack:GetChildren()) do
+		if item_parent_listeners[item] then return end
+		item_parent_listeners[item] = create_item_parent_listener(item)
+		add_item(item)
+	end
+	for _,item in ipairs(character:GetChildren()) do
+		if item.ClassName == 'Tool' then 
+			if item_parent_listeners[item] then return end
+			item_parent_listeners[item] = create_item_parent_listener(item)
+			add_item(item)
+		end
+	end
 end
 
-local function add_inv_listener_group()
-
+local function add_inv_listener(types,name,f,group_names)
+	group_names = group_names or {}
+	if inv_listeners[name] then
+		rm_inv_listener(name)
+	end
+	inv_listeners[name] = {}
+	inv_listeners[name].f = f
+	inv_listeners[name].types = types
+	inv_listeners[name].groups = group_names
+	for _,v in ipairs(group_names) do
+		if not inventory_items[v] then
+			inv_group_to_listener_names[v] = {}
+			inventory_items[v] = {}
+		end
+		inv_group_to_listener_names[v][name] = true
+	end
+	for _,v in ipairs(types) do
+		inv_group_to_listener_names[v][name] = true
+	end
+	for _,type in pairs(types) do
+		for i in pairs(inventory_items[type]) do
+			f(i)
+		end
+	end
 end
 
-local function rm_inv_listener_group()
+local function rm_inv_listener(name)
+	if not inv_listeners[name] then return end
+	for _,v in ipairs(inv_listeners[name].groups) do
+		inv_group_to_listener_names[v][name] = nil
+		if not next(inv_group_to_listener_names[v]) then
+			inv_group_to_listener_names[v] = nil
+			inventory_items[v] = nil
+		end
+	end
+	for _,v in ipairs(inv_listeners[name].types) do
+		inv_group_to_listener_names[v][name] = nil
+	end
+	inv_listeners[name] = nil
 end
 
+start_inventry_listener()
+add_inv_listener({'l'},'formatpetnames',function(v)
+	v.Name = format_pet_name(v:GetAttribute('PET_UUID'))
+end)
 
+local function favorite_item(item)
+	if item:GetAttribute('Favorited') ~= true then
+		ReplicatedStorage.GameEvents.Favorite_Item:FireServer(item)
+	end
+end
+local function unfavorite_item(item)
+	if item:GetAttribute('Favorited') == true then
+		ReplicatedStorage.GameEvents.Favorite_Item:FireServer(item)
+	end
+end
 
 function get_fruit_from_groups(groups,n,output)
   local count = 0
@@ -289,7 +448,7 @@ end
 
 function collect_fruit_batch(fruits)
   if fruits and next(fruits) then
-    game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(fruits)
+    ReplicatedStorage.GameEvents.Crops.Collect:FireServer(fruits)
   end
 end
 
@@ -309,23 +468,21 @@ local fall_cycle_last = 0.0
 local fall_cycle_length = 0.2
 local falloutput = ''
 function do_fall_event()
-  if (os.clock() - fall_cycle_last) > fall_cycle_length then
-    fall_cycle_last = os.clock()
-    local reqtrait = getlf()
-    if reqtrait and traitsdata[reqtrait] then
-      if not progress_label.Text:find('Cooldown') and (299 - os.time() + data.FallMarket.LastRewardClaimedTime) <= 0 then
-        local frutbatch = {}
-        get_fruit_from_groups(traitsdata[reqtrait],10,frutbatch)
-        collect_fruit_batch(frutbatch)
-        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("FallMarketEvent"):WaitForChild("SubmitAllPlants"):FireServer()
-      end
-      falloutput = 300 - os.time() + data.FallMarket.LastRewardClaimedTime .. ' ' .. reqtrait .. ' ' .. getddsize(sorted_fruits,traitsdata[reqtrait])
-    end
-  end
+  	if (os.clock() - fall_cycle_last) < fall_cycle_length then return end
+	fall_cycle_last = os.clock()
+	local reqtrait = getlf()
+	if reqtrait and traitsdata[reqtrait] then
+	  	if not progress_label.Text:find('Cooldown') and (299 - DateTime.now().UnixTimestamp + data.FallMarket.LastRewardClaimedTime) <= 0 then
+			local frutbatch = {}
+			get_fruit_from_groups(traitsdata[reqtrait],10,frutbatch)
+			collect_fruit_batch(frutbatch)
+			ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("FallMarketEvent"):WaitForChild("SubmitAllPlants"):FireServer()
+	 	 end
+	 	 falloutput = 300 - DateTime.now().UnixTimestamp + data.FallMarket.LastRewardClaimedTime .. ' ' .. reqtrait .. ' ' .. getddsize(sorted_fruits,traitsdata[reqtrait])
+	end
 end
 
 function attributeMatch(obj,pos,neg)
-	if obj:GetAttribute('Favorited') == true then return false end
 	pos = pos or {}
 	neg = neg or {}
 	for _,attr in ipairs(pos) do 
@@ -346,11 +503,11 @@ function findFirstNFruits(groups,n,pos_muts,neg_muts,output)
   for _,v in ipairs(groups) do
   	for fruit in pairs(sorted_fruits[v]) do 
   		if attributeMatch(fruit,pos_muts,neg_muts) then
-        count = count + 1
-        table.insert(output,fruit)
-        if count >= n then 
-  			  return 
-        end
+	        count = count + 1
+	        table.insert(output,fruit)
+	        if count >= n then 
+	  			  return 
+	        end
   		end 
   	end
   end
@@ -358,31 +515,91 @@ end
 
 local rebirth_cycle_last = -10
 local rebirth_cycle_length = 10
-local rebirth_reset_time = require(game:GetService("ReplicatedStorage").Data.RebirthConfigData).RESET_TIME
+local rebirth_reset_time = require(ReplicatedStorage.Data.RebirthConfigData).RESET_TIME
 local rebirth_output = ''
 local required_fruit
-function auto_rebirth()
-	if (os.clock() - rebirth_cycle_last) > rebirth_cycle_length then
-		rebirth_cycle_last = os.clock()
-   		rebirth_output = data.RebirthData.LastRebirthTime + rebirth_reset_time - DateTime.now().UnixTimestamp
-		for _,plant in ipairs(data.RebirthData.RequiredPlants) do
-			for _,v in ipairs(plant.Mutations) do
-				rebirth_output = rebirth_output .. ' ' .. v
-			end
-			rebirth_output = rebirth_output .. ' ' .. plant.FruitName
-		end
-		rebirth_output = rebirth_output .. ' ' .. (required_fruit and 'obtained' or 'not obtained')
+local requried_fruit_tracker
+
+local function dorebirth()
+	if required_fruit then
+		unfavorite_item(required_fruit)
+		hold_tool(required_fruit)
+		ReplicatedStorage.GameEvents.BuyRebirth:FireServer()
 	end
 end
 
+local function savereqfruit(item)
+	required_fruit = item
+	required_fruit_tracker = required_fruit.AncestryChanged:Connect(function(child, parent)
+		if parent ~= character and parent ~= user.Backpack then
+			required_fruit_tracker:Disconnect()
+			required_fruit_tracker = nil
+			required_fruit = nil
+		end
+	end)
+	favorite_item(required_fruit)
+end
 
+function auto_rebirth()
+	if (os.clock() - rebirth_cycle_last) < rebirth_cycle_length then return end
+	rebirth_cycle_last = os.clock()
+	local req_plant = data.RebirthData.RequiredPlants[1].FruitName
+	local req_mutations = data.RebirthData.RequiredPlants[1].Mutations
+	if not required_fruit or required_fruit:GetAttribute('j') ~= req_plant or not attributeMatch(required_fruit,req_mutations) then
+		if required_fruit then
+			required_fruit_tracker:Disconnect()
+			required_fruit_tracker = nil
+			required_fruit = nil
+		end
+		for i in pairs(inventory_items['j']) do
+			if i:GetAttribute('j') == req_plant and attributeMatch(i,req_mutations) do
+				savereqfruit(i)
+				break
+			end
+		end
+		if not required_fruit then
+			for i in pairs(sorted_fruits[req_plant]) do
+				if i.Name == req_plant and attributeMatch(i,req_mutations) do
+					collect_fruit_batch({i})
+					local listener_timout_time = os.clock() + 9
+					local listenen4reqfruit = user.Backpack.ChildAdded:Connect(function(item)
+						if item:GetAttribute('j') == req_plant and attributeMatch(item,req_mutations) then
+							listenen4reqfruit:Disconnect()
+							savereqfruit(item)
+						elseif os.clock() > listener_timout_time then
+							listenen4reqfruit:Disconnect()
+						end
+					end)
+					break
+				end
+			end
+		end
+	end
+	if ((data.RebirthData.LastRebirthTime + rebirth_reset_time - DateTime.now().UnixTimestamp) < 0) and reqfruit() then
+		dorebirth()
+	end	
+	rebirth_output = data.RebirthData.LastRebirthTime + rebirth_reset_time - DateTime.now().UnixTimestamp
+	for _,plant in ipairs(data.RebirthData.RequiredPlants) do
+		for _,v in ipairs(plant.Mutations) do
+			rebirth_output = rebirth_output .. ' ' .. v
+		end
+		rebirth_output = rebirth_output .. ' ' .. plant.FruitName
+	end
+	rebirth_output = rebirth_output .. ' ' .. (required_fruit and 'obtained' or 'not obtained')
+end
+
+start_inventry_listener()
+add_inv_listener({'l'},'formatpetnames',function(v)
+	v.Name = format_pet_name(v:GetAttribute('PET_UUID'))
+end)
 start_farm_listener()
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '222'
 local run
 run = RunService.Heartbeat:Connect(function(dt)
-	if workspace[user.Name]:FindFirstChild('Shovel [Destroy Plants]') then 
+	if character:FindFirstChild('Shovel [Destroy Plants]') then 
 		run:Disconnect() 
 		diconec_farm_listener() 
+		diconec_inventory_listener()
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
