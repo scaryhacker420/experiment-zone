@@ -542,6 +542,14 @@ local function savereqfruit(item)
 	favorite_item(required_fruit)
 end
 
+local function usave_required_rebirth_fruit()
+	if not required_fruit then return end
+	unfavorite_item(required_fruit)
+	required_fruit_tracker:Disconnect()
+	required_fruit_tracker = nil
+	required_fruit = nil
+end
+
 function auto_rebirth()
 	if (os.clock() - rebirth_cycle_last) < rebirth_cycle_length then return end
 	rebirth_cycle_last = os.clock()
@@ -549,9 +557,7 @@ function auto_rebirth()
 	local req_mutations = data.RebirthData.RequiredPlants[1].Mutations
 	if not required_fruit or required_fruit:GetAttribute('f') ~= req_plant or not attributeMatch(required_fruit,req_mutations) then
 		if required_fruit then
-			required_fruit_tracker:Disconnect()
-			required_fruit_tracker = nil
-			required_fruit = nil
+			usave_required_rebirth_fruit()
 		end
 		for i in pairs(inventory_items.j) do
 			if i:GetAttribute('f') == req_plant and attributeMatch(i,req_mutations,{'d'}) then
@@ -602,6 +608,7 @@ run = RunService.Heartbeat:Connect(function(dt)
 		run:Disconnect() 
 		diconec_farm_listener() 
 		diconec_inventory_listener()
+		usave_required_rebirth_fruit()
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
