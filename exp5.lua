@@ -179,6 +179,7 @@ end
 
 local function format_pet_name(uuid)
 	local pet = data.PetsData.PetInventory.Data[uuid]
+	if not pet then return end
 	local name = string.format('%s\n[%.3fkg] Age %d', concat_pet_name(pet,9), round_down(pet.PetData.BaseWeight * 1.1,3), pet.PetData.Level)
 	if (pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' and ((#PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]>9) or (#pet.PetType>9))) or (#pet.PetType>18) then
 		name = name .. '\n\n' .. concat_pet_name(pet,100)
@@ -421,7 +422,7 @@ end
 
 start_inventry_listener()
 add_inv_listener({'l'},'formatpetnames',function(v)
-	v.Name = format_pet_name(v:GetAttribute('PET_UUID'))
+	v.Name = format_pet_name(v:GetAttribute('PET_UUID')) or v.Name
 end)
 
 local function favorite_item(item)
