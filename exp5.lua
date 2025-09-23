@@ -420,11 +420,6 @@ local function rm_inv_listener(name)
 	inv_listeners[name] = nil
 end
 
-start_inventry_listener()
-add_inv_listener({'l'},'formatpetnames',function(v)
-	v.Name = format_pet_name(v:GetAttribute('PET_UUID')) or v.Name
-end)
-
 local function favorite_item(item)
 	if item:GetAttribute('d') ~= true then
 		ReplicatedStorage.GameEvents.Favorite_Item:FireServer(item)
@@ -600,7 +595,7 @@ end
 
 start_inventry_listener()
 add_inv_listener({'l'},'formatpetnames',function(v)
-	v.Name = format_pet_name(v:GetAttribute('PET_UUID'))
+	v.Name = format_pet_name(v:GetAttribute('PET_UUID')) or v.Name
 end)
 start_farm_listener()
 local run
