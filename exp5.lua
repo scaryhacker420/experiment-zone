@@ -40,7 +40,6 @@ local item_type_enums = game:GetService("ReplicatedStorage").Data.EnumRegistry.I
 
 
 
-
 local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
 local data = DataService:GetData()
 local Players = game:GetService("Players")
@@ -166,6 +165,95 @@ function diconec_farm_listener()
 end 
 
 
+local function concat_pet_name(pet,max_len)
+	if pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' then
+		return PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]:sub(1,max_len) .. ' ' .. pet.PetType:sub(1,max_len)
+	else
+		return pet.PetType:sub(1,max_len*2)
+	end
+end
+
+local function round_down(n,decimals)
+	return math.floor(n * 10^decimals)/(10^decimals)
+end
+
+local function format_pet_name(uuid)
+	local pet = data.PetsData.PetInventory.Data[uuid]
+	local name = string.format('%s\n[%.3fkg] Age %d', concat_pet_name(pet,9), round_down(pet.PetData.BaseWeight * 1.1,3), pet.PetData.Level)
+	if (pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' and ((#PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]>9) or (#pet.PetType>9))) or (#pet.PetType>18) then
+		name = name .. '\n\n' .. concat_pet_name(pet,100)
+	end
+	return name
+end
+
+local function calculate_pet_weight(pet)
+	return pet.PetData.BaseWeight * (0.1 * pet.PetData.Level + 1)
+end
+
+PetStatValues = {}
+PetStatValues.Seal = {['']={2.5,0.22,8,50}}
+PetStatValues.Koi = {['']={3,0.22,8,50}}
+PetStatValues.Brontosaurus = {['']={5.25,0.1,30,30}}
+PetStatValues.Phoenix = {['max age bonus']={4.8,0.1}}
+
+local function get_mutation_passive_boost(pet)
+	if pet.PetData.MutationType and PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostType == 'PASSIVE_BOOST' then
+		return PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostAmount
+	else
+		return 0
+	end
+end
+
+local function calc_passive_mult(pet,mtoy,stoy)
+	return 1 + get_mutation_passive_boost(pet) + (mtoy and .2 or 0) + (stoy and .1 or 0)
+end
+
+local function calc_pet_stat(pet,petstat,mtoy,stoy)
+	if PetStatValues[pet.PetType] then
+		return math.min(calculate_pet_weight(pet) * petstat[2] + calc_passive_mult(pet,mtoy,stoy) * petstat[1], petstat[3] or 0xFFFFFFFFFFFFFFFF) 
+	end
+end
+
+local function calc_equipped_pet_stats()
+	eqipped_pets = {}
+	output = {}
+	for _,v in pairs(data.PetsData.EquippedPets) do
+		local pet = data.PetsData.PetInventory.Data[v]	
+		if PetStatValues[pet.PetType] then 
+			for i,stat in pairs(PetStatValues[pet.PetType]) do
+				if PetStatValues[pet.PetType][i] and PetStatValues[pet.PetType][i][4] then	
+					if not output[pet.PetType] then
+						output[pet.PetType] = {}
+					end	
+					if not output[pet.PetType][i] then
+						output[pet.PetType][i] = 0
+					end
+					--print((PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] or 'normal') .. ' ' .. pet.PetType .. ' ' .. round_down(calculate_pet_weight(pet),3) .. 'kg ' .. round_down(calc_pet_stat(pet,stat),3))
+					output[pet.PetType][i] = output[pet.PetType][i] + calc_pet_stat(pet,stat)
+				end
+			end
+		end
+	end
+	return output
+end
+
+local function print_pet_stats(stats)
+	for pet,stats in pairs(stats) do
+		for stat,v in pairs(stats) do
+			print(pet .. stat .. ': ' .. v)
+		end
+	end
+end
+
+local function uneqiup_tools()
+
+end
+
+local holding_tool = false
+local function hold_tool(tool)
+
+end
+
 local inventory_listener
 local inventory_items = {}
 local grouped_items = {}
@@ -219,6 +307,7 @@ end
 
 local fall_cycle_last = 0.0
 local fall_cycle_length = 0.2
+local falloutput = ''
 function do_fall_event()
   if (os.clock() - fall_cycle_last) > fall_cycle_length then
     fall_cycle_last = os.clock()
@@ -230,7 +319,7 @@ function do_fall_event()
         collect_fruit_batch(frutbatch)
         game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("FallMarketEvent"):WaitForChild("SubmitAllPlants"):FireServer()
       end
-      return 300 - os.time() + data.FallMarket.LastRewardClaimedTime .. ' ' .. reqtrait .. ' ' .. getddsize(sorted_fruits,traitsdata[reqtrait])
+      falloutput = 300 - os.time() + data.FallMarket.LastRewardClaimedTime .. ' ' .. reqtrait .. ' ' .. getddsize(sorted_fruits,traitsdata[reqtrait])
     end
   end
 end
@@ -267,19 +356,28 @@ function findFirstNFruits(groups,n,pos_muts,neg_muts,output)
   end
 end
 
-local rebirth_cycle_last = 0.0
+local rebirth_cycle_last = -10
 local rebirth_cycle_length = 10
+local rebirth_reset_time = require(game:GetService("ReplicatedStorage").Data.RebirthConfigData).RESET_TIME
+local rebirth_output = ''
+local required_fruit
 function auto_rebirth()
-  if (os.clock() - rebirth_cycle_last) > rebirth_cycle_length then
-    rebirth_cycle_last = os.clock()
-   
-  end
+	if (os.clock() - rebirth_cycle_last) > rebirth_cycle_length then
+		rebirth_cycle_last = os.clock()
+   		rebirth_output = data.RebirthData.LastRebirthTime + rebirth_reset_time - DateTime.now().UnixTimestamp
+		for _,plant in ipairs(data.RebirthData.RequiredPlants) do
+			for _,v in ipairs(plant.Mutations) do
+				rebirth_output = rebirth_output .. ' ' .. v
+			end
+			rebirth_output = rebirth_output .. ' ' .. plant.FruitName
+		end
+		rebirth_output = rebirth_output .. ' ' .. (required_fruit and 'obtained' or 'not obtained')
+	end
 end
 
 
 start_farm_listener()
 game:GetService("Players").LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = '222'
-local falloutput = ''
 local run
 run = RunService.Heartbeat:Connect(function(dt)
 	if workspace[user.Name]:FindFirstChild('Shovel [Destroy Plants]') then 
@@ -288,9 +386,7 @@ run = RunService.Heartbeat:Connect(function(dt)
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
-	data = DataService:GetData()
-	local s = ''
-	falloutput = do_fall_event() or falloutput
-	s = s .. falloutput
-	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = s
+	do_fall_event()
+	auto_rebirth()
+	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = falloutput .. '\n' .. rebirth_output
 end)
