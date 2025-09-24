@@ -149,17 +149,20 @@ function diconec_farm_listener()
 		farmlistener = nil
 	end
 	for _,t in pairs(trees) do
-		for _,obj in pairs(t) do
-			for _,v in pairs(obj) do
+		for obj,l in pairs(t) do
+			for _,v in pairs(l) do
 				v:Disconnect()
 			end
+			t[obj] = nil
 		end
 	end
 	for _,t in pairs(fruits) do
-		for _,obj in pairs(t) do
-			for _,v in pairs(obj) do
+		for obj,l in pairs(t) do
+			for _,v in pairs(l) do
 				v:Disconnect()
 			end
+			t[obj] = nil
+			remove_fruit_from_sorted_list(obj)
 		end
 	end
 end 
@@ -245,6 +248,21 @@ local function print_pet_stats(stats)
 		end
 	end
 end
+
+
+local function match_equipped_pets(type,agelower,agehigher,a1wlower,a1whigher,mutations,exclude_mutations)
+	local qualify = {}
+end
+
+
+local function match_backpack_pets(type,agelower,agehigher,a1wlower,a1whigher,mutations,exclude_mutations)
+	local qualify = {}
+
+end
+
+
+
+
 
 local function unequip_tools()
 	for i,v in ipairs(character:GetChildren()) do
