@@ -466,6 +466,7 @@ local fall_cycle_last = 0.0
 local fall_cycle_length = 0.2
 local falloutput = ''
 function do_fall_event()
+	if not trait_label then return end
   	if (os.clock() - fall_cycle_last) < fall_cycle_length then return end
 	fall_cycle_last = os.clock()
 	local reqtrait = getlf()
@@ -483,32 +484,32 @@ end
 function attributeMatch(obj,pos,neg)
 	pos = pos or {}
 	neg = neg or {}
-	for _,attr in ipairs(pos) do 
-		if not obj:GetAttribute(attr) == true then
+	for _,attr in ipairs(neg) do 
+		if obj:GetAttribute(attr) == true then
 			return false
 		end 
 	end
-	for _,attr in ipairs(neg) do 
-		if obj:GetAttribute(attr) == true then
+	for _,attr in ipairs(pos) do 
+		if not obj:GetAttribute(attr) == true then
 			return false
 		end 
 	end
 	return true
 end
 
-function findFirstNFruits(groups,n,pos_muts,neg_muts,output)
-  local count = 0
-  for _,v in ipairs(groups) do
-  	for fruit in pairs(sorted_fruits[v]) do 
-  		if attributeMatch(fruit,pos_muts,neg_muts) then
-	        count = count + 1
-	        table.insert(output,fruit)
-	        if count >= n then 
-	  			  return 
-	        end
-  		end 
-  	end
-  end
+function FindAttributeMatchInGroups(groups,n,pos_muts,neg_muts,output,pos_any)
+	local count = 0
+	for _,t in ipairs(groups) do
+		for object in pairs(t) do 
+			if (pos_any and (attributeMatch(object,nil,neg_muts) and not attributeMatch(object,nil,pos_muts)) or attributeMatch(object,pos_muts,neg_muts)) then
+				count = count + 1
+				table.insert(output,object)
+				if count >= n then 
+					  return 
+				end
+			end 
+		end
+	end
 end
 
 local rebirth_cycle_last = -10
@@ -519,11 +520,10 @@ local required_fruit
 local requried_fruit_tracker
 
 local function dorebirth()
-	if required_fruit then
-		unfavorite_item(required_fruit)
-		hold_tool(required_fruit,1)
-		ReplicatedStorage.GameEvents.BuyRebirth:FireServer()
-	end
+	if (not required_fruit) or (holding_tool and (hold_tool_timeout > os.clock())) then return end
+	unfavorite_item(required_fruit)
+	hold_tool(required_fruit,1)
+	ReplicatedStorage.GameEvents.BuyRebirth:FireServer()
 end
 
 local function savereqfruit(item)
@@ -538,7 +538,7 @@ local function savereqfruit(item)
 	favorite_item(required_fruit)
 end
 
-local function usave_required_rebirth_fruit()
+local function unsave_required_rebirth_fruit()
 	if not required_fruit then return end
 	unfavorite_item(required_fruit)
 	required_fruit_tracker:Disconnect()
@@ -553,7 +553,7 @@ function auto_rebirth()
 	local req_mutations = data.RebirthData.RequiredPlants[1].Mutations
 	if not required_fruit or required_fruit:GetAttribute('f') ~= req_plant or not attributeMatch(required_fruit,req_mutations) then
 		if required_fruit then
-			usave_required_rebirth_fruit()
+			unsave_required_rebirth_fruit()
 		end
 		for i in pairs(inventory_items.j) do
 			if i:GetAttribute('f') == req_plant and attributeMatch(i,req_mutations,{'d'}) then
@@ -562,20 +562,32 @@ function auto_rebirth()
 			end
 		end
 		if not required_fruit then
-			for i in pairs(sorted_fruits[req_plant]) do
-				if i.Name == req_plant and attributeMatch(i,req_mutations) then
-					collect_fruit_batch({i})
-					local listener_timout_time = os.clock() + 9
-					local listenen4reqfruit
-					listenen4reqfruit = user.Backpack.ChildAdded:Connect(function(item)
-						if item:GetAttribute('b') == 'j' and item:GetAttribute('f') == req_plant and attributeMatch(item,req_mutations) then
-							listenen4reqfruit:Disconnect()
-							savereqfruit(item)
-						elseif os.clock() > listener_timout_time then
-							listenen4reqfruit:Disconnect()
-						end
-					end)
-					break
+			local frutingarden = {}
+			FindAttributeMatchInGroups({sorted_fruits[req_plant]},1,req_mutations,nil,frutingarden)
+			if frutingarden[1] then
+				collect_fruit_batch(frutingarden)
+				local listener_timout_time = os.clock() + 9
+				local listenen4reqfruit
+				listenen4reqfruit = user.Backpack.ChildAdded:Connect(function(item)
+					if item:GetAttribute('b') == 'j' and item:GetAttribute('f') == req_plant and attributeMatch(item,req_mutations) then
+						listenen4reqfruit:Disconnect()
+						savereqfruit(item)
+					elseif os.clock() > listener_timout_time then
+						listenen4reqfruit:Disconnect()
+					end
+				end)
+			elseif req_mutations[1] then
+				local mut_match_any = {}
+				if req_mutations[1] == 'Wet' then
+					mut_match_any = {'Chilled','Drenched','Frozen'}
+				elseif req_mutations[1] == 'Windstruck' then
+					mut_match_any = {'Tempestuous','Twisted'}
+				elseif req_mutations[1] == 'Chilled' then
+					mut_match_any = {'Drenched','Frozen','Wet'}
+				end
+				FindAttributeMatchInGroups({sorted_fruits[req_plant]},5,mut_match_any,nil,frutingarden,true)
+				if frutingarden[1] then
+					collect_fruit_batch(frutingarden)
 				end
 			end
 		end
@@ -604,7 +616,7 @@ run = RunService.Heartbeat:Connect(function(dt)
 		run:Disconnect() 
 		diconec_farm_listener() 
 		diconec_inventory_listener()
-		usave_required_rebirth_fruit()
+		unsave_required_rebirth_fruit()
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
