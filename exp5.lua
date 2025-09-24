@@ -58,6 +58,49 @@ local theplants = player_farm.Important.Plants_Physical
 
 
 
+local function unequip_tools()
+	for i,v in ipairs(character:GetChildren()) do
+		if v.ClassName == 'Tool' then 
+			v.Parent = user.Backpack
+		end
+	end
+end
+
+local holding_tool
+local hold_tool_timeout = 0
+local function hold_tool(tool,timeout_time)
+	holding_tool = tool
+	hold_tool_timeout = os.clock() + (timeout_time or 3)
+	local hold
+	hold = tool.AncestryChanged:Connect(function(child, parent)
+		if os.clock() > hold_tool_timeout then
+			holding_tool = nil
+			hold:Disconnect()
+			return
+		end
+		if parent == user.Backpack then
+			child.Parent = character
+		elseif parent ~= character then
+			holding_tool = nil
+			hold:Disconnect()
+		end
+  	end)
+	local unequip_other_tools
+	unequip_other_tools = character.ChildAdded:Connect(function(child)
+		if os.clock() > hold_tool_timeout then
+			unequip_other_tools:Disconnect()
+			return
+		end
+		if child ~= tool and child.ClassName == 'Tool' then 
+				child.Parent = user.Backpack
+		end
+	end)
+	unequip_tools()
+	tool.Parent = character
+end
+
+
+
 local function remove_fruit_from_sorted_list(fruit)
   if sorted_fruits_map[fruit] then
     for _,v in ipairs(sorted_fruits_map[fruit]) do
@@ -166,144 +209,6 @@ function diconec_farm_listener()
 		end
 	end
 end 
-
-
-local function concat_pet_name(pet,max_len)
-	if pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' then
-		return PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]:sub(1,max_len) .. ' ' .. pet.PetType:sub(1,max_len)
-	else
-		return pet.PetType:sub(1,max_len*2)
-	end
-end
-
-local function round_down(n,decimals)
-	return math.floor(n * 10^decimals)/(10^decimals)
-end
-
-local function format_pet_name(uuid)
-	local pet = data.PetsData.PetInventory.Data[uuid]
-	if not pet then return end
-	local name = string.format('%s\n[%.3fkg] Age %d', concat_pet_name(pet,9), round_down(pet.PetData.BaseWeight * 1.1,3), pet.PetData.Level)
-	if (pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' and ((#PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]>9) or (#pet.PetType>9))) or (#pet.PetType>18) then
-		name = name .. '\n\n' .. concat_pet_name(pet,100)
-	end
-	return name
-end
-
-local function calculate_pet_weight(pet)
-	return pet.PetData.BaseWeight * (0.1 * pet.PetData.Level + 1)
-end
-
-PetStatValues = {}
-PetStatValues.Seal = {['']={2.5,0.22,8,50}}
-PetStatValues.Koi = {['']={3,0.22,8,50}}
-PetStatValues.Brontosaurus = {['']={5.25,0.1,30,30}}
-PetStatValues.Phoenix = {['max age bonus']={4.8,0.1}}
-
-local function get_mutation_passive_boost(pet)
-	if pet.PetData.MutationType and PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostType == 'PASSIVE_BOOST' then
-		return PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostAmount
-	else
-		return 0
-	end
-end
-
-local function calc_passive_mult(pet,mtoy,stoy)
-	return 1 + get_mutation_passive_boost(pet) + (mtoy and .2 or 0) + (stoy and .1 or 0)
-end
-
-local function calc_pet_stat(pet,petstat,mtoy,stoy)
-	if PetStatValues[pet.PetType] then
-		return math.min(calculate_pet_weight(pet) * petstat[2] + calc_passive_mult(pet,mtoy,stoy) * petstat[1], petstat[3] or 0xFFFFFFFFFFFFFFFF) 
-	end
-end
-
-local function calc_equipped_pet_stats()
-	eqipped_pets = {}
-	output = {}
-	for _,v in pairs(data.PetsData.EquippedPets) do
-		local pet = data.PetsData.PetInventory.Data[v]	
-		if PetStatValues[pet.PetType] then 
-			for i,stat in pairs(PetStatValues[pet.PetType]) do
-				if PetStatValues[pet.PetType][i] and PetStatValues[pet.PetType][i][4] then	
-					if not output[pet.PetType] then
-						output[pet.PetType] = {}
-					end	
-					if not output[pet.PetType][i] then
-						output[pet.PetType][i] = 0
-					end
-					--print((PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] or 'normal') .. ' ' .. pet.PetType .. ' ' .. round_down(calculate_pet_weight(pet),3) .. 'kg ' .. round_down(calc_pet_stat(pet,stat),3))
-					output[pet.PetType][i] = output[pet.PetType][i] + calc_pet_stat(pet,stat)
-				end
-			end
-		end
-	end
-	return output
-end
-
-local function print_pet_stats(stats)
-	for pet,stats in pairs(stats) do
-		for stat,v in pairs(stats) do
-			print(pet .. stat .. ': ' .. v)
-		end
-	end
-end
-
-
-local function match_equipped_pets(type,agelower,agehigher,a1wlower,a1whigher,mutations,exclude_mutations)
-	local qualify = {}
-end
-
-
-local function match_backpack_pets(type,agelower,agehigher,a1wlower,a1whigher,mutations,exclude_mutations)
-	local qualify = {}
-
-end
-
-
-
-
-
-local function unequip_tools()
-	for i,v in ipairs(character:GetChildren()) do
-		if v.ClassName == 'Tool' then 
-			v.Parent = user.Backpack
-		end
-	end
-end
-
-local holding_tool
-local hold_tool_timeout = 0
-local function hold_tool(tool,timeout_time)
-	holding_tool = tool
-	hold_tool_timeout = os.clock() + (timeout_time or 3)
-	local hold
-	hold = tool.AncestryChanged:Connect(function(child, parent)
-		if os.clock() > hold_tool_timeout then
-			holding_tool = nil
-			hold:Disconnect()
-			return
-		end
-		if parent == user.Backpack then
-			child.Parent = character
-		elseif parent ~= character then
-			holding_tool = nil
-			hold:Disconnect()
-		end
-  	end)
-	local unequip_other_tools
-	unequip_other_tools = character.ChildAdded:Connect(function(child)
-		if os.clock() > hold_tool_timeout then
-			unequip_other_tools:Disconnect()
-			return
-		end
-		if child ~= tool and child.ClassName == 'Tool' then 
-				child.Parent = user.Backpack
-		end
-	end)
-	unequip_tools()
-	tool.Parent = character
-end
 
 local inventory_listener
 local item_parent_listeners = {}
@@ -449,6 +354,230 @@ local function unfavorite_item(item)
 	end
 end
 
+
+local function concat_pet_name(pet,max_len)
+	if pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' then
+		return PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]:sub(1,max_len) .. ' ' .. pet.PetType:sub(1,max_len)
+	else
+		return pet.PetType:sub(1,max_len*2)
+	end
+end
+
+local function round_down(n,decimals)
+	return math.floor(n * 10^decimals)/(10^decimals)
+end
+
+local function format_pet_name(uuid)
+	local pet = data.PetsData.PetInventory.Data[uuid]
+	if not pet then return end
+	local name = string.format('%s\n[%.3fkg] Age %d', concat_pet_name(pet,9), round_down(pet.PetData.BaseWeight * 1.1,3), pet.PetData.Level)
+	if (pet.PetData.MutationType and pet.PetData.MutationType ~= 'm' and ((#PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType]>9) or (#pet.PetType>9))) or (#pet.PetType>18) then
+		name = name .. '\n\n' .. concat_pet_name(pet,100)
+	end
+	return name
+end
+
+local function calculate_pet_weight(pet)
+	return pet.PetData.BaseWeight * (0.1 * pet.PetData.Level + 1)
+end
+
+PetStatValues = {}
+PetStatValues.Seal = {['']={2.5,0.22,8,50}}
+PetStatValues.Koi = {['']={3,0.22,8,50}}
+PetStatValues.Brontosaurus = {['']={5.25,0.1,30,30}}
+PetStatValues.Phoenix = {['max age bonus']={4.8,0.1}}
+
+local function get_mutation_passive_boost(pet)
+	if pet.PetData.MutationType and PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostType == 'PASSIVE_BOOST' then
+		return PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostAmount
+	else
+		return 0
+	end
+end
+
+local function calc_passive_mult(pet,mtoy,stoy)
+	return 1 + get_mutation_passive_boost(pet) + (mtoy and .2 or 0) + (stoy and .1 or 0)
+end
+
+local function calc_pet_stat(pet,petstat,mtoy,stoy)
+	if PetStatValues[pet.PetType] then
+		return math.min(calculate_pet_weight(pet) * petstat[2] + calc_passive_mult(pet,mtoy,stoy) * petstat[1], petstat[3] or 0xFFFFFFFFFFFFFFFF) 
+	end
+end
+
+local function calc_equipped_pet_stats()
+	eqipped_pets = {}
+	output = {}
+	for _,v in pairs(data.PetsData.EquippedPets) do
+		local pet = data.PetsData.PetInventory.Data[v]	
+		if PetStatValues[pet.PetType] then 
+			for i,stat in pairs(PetStatValues[pet.PetType]) do
+				if PetStatValues[pet.PetType][i] and PetStatValues[pet.PetType][i][4] then	
+					if not output[pet.PetType] then
+						output[pet.PetType] = {}
+					end	
+					if not output[pet.PetType][i] then
+						output[pet.PetType][i] = 0
+					end
+					--print((PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] or 'normal') .. ' ' .. pet.PetType .. ' ' .. round_down(calculate_pet_weight(pet),3) .. 'kg ' .. round_down(calc_pet_stat(pet,stat),3))
+					output[pet.PetType][i] = output[pet.PetType][i] + calc_pet_stat(pet,stat)
+				end
+			end
+		end
+	end
+	return output
+end
+
+local function print_pet_stats(stats)
+	for pet,stats in pairs(stats) do
+		for stat,v in pairs(stats) do
+			print(pet .. stat .. ': ' .. v)
+		end
+	end
+end
+
+
+local pets_to_equip = {}
+local pets_to_unequip = {}
+local pets_to_mutate = {}
+
+local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations,make_mutations_inverse)
+	local equip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
+	local unequip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
+	if qualfier_type == 'm' then
+		equip_qualifier[2] = 1
+		equip_qualifier[3] = 49
+		unequip_qualifier[2] = 50
+		unequip_qualifier[3] = 100
+		table.insert(pets_to_mutate,unequip_qualifier)
+		table.insert(pets_to_unequip,unequip_qualifier)
+		table.insert(pets_to_equip,equip_qualifier)
+	elseif qualfier_type == 'a' then
+		equip_qualifier[2] = 1
+		equip_qualifier[3] = 99
+		unequip_qualifier[2] = 100
+		unequip_qualifier[3] = 100
+		table.insert(pets_to_unequip,unequip_qualifier)
+		table.insert(pets_to_equip,equip_qualifier)
+	end
+end
+
+
+local function unequip_pets(pets)
+	for _,v in ipairs(pets) do 
+		ReplicatedStorage.GameEvents.PetsService:FireServer('UnequipPet',v)
+	end
+end
+
+local function equip_pets(pets)
+	for _,v in ipairs(pets) do 
+		ReplicatedStorage.GameEvents.PetsService:FireServer('EquipPet',v:GetAttribute('PET_UUID'),player_farm.Center_Point.CFrame)
+	end
+end
+
+local function mumachine(arg)
+	ReplicatedStorage.GameEvents.PetMutationMachineService_RE:FireServer(arg)
+end
+
+local function start_mutation_machine()
+	if data.PetMutationMachine.SubmittedPet and data.PetMutationMachine.PetReady == true then
+		mumachine('ClaimMutatedPet')
+		mumachine('StartMachine')
+	elseif data.PetMutationMachine.PetReady == false and data.PetMutationMachine.IsRunning == false then
+		mumachine('StartMachine')
+	end
+end
+
+local function check_mutation(pet,mutations,exclusionary)
+	local mutation = pet.PetData.MutationType or 'm'
+	for _,v in ipairs(mutations) do
+		if mutation == v then
+			return not exclusionary
+		end
+	end
+	return exclusionary
+end
+
+local function match_equipped_pets(output,type,agelower,agehigher,bwlower,bwhigher,mutations,exclusionary)
+	for _,v in ipairs(data.PetsData.EquippedPets) do
+		local pet = data.PetsData.PetInventory.Data[v]
+		if pet.PetType == type and pet.PetData.Level >= agelower and pet.PetData.Level <= agehigher and
+		pet.PetData.BaseWeight >= bwlower and pet.PetData.BaseWeight <= bwhigher and
+		check_mutation(pet,mutations,exclusionary) then
+			table.insert(output,v)
+		end
+	end
+end
+
+local function match_backpack_pets(ignor_fav,type,agelower,agehigher,bwlower,bwhigher,mutations,exclusionary)
+	local output = {}
+	for i in pairs(inventory_items.l) do
+		local pet = data.PetsData.PetInventory.Data[i:GetAttribute('PET_UUID')]
+		if not (ignor_fav and i:GetAttribute('d') == true) and pet and pet.PetType == type and 
+		pet.PetData.Level >= agelower and pet.PetData.Level <= agehigher and
+		pet.PetData.BaseWeight >= bwlower and pet.PetData.BaseWeight <= bwhigher and
+		check_mutation(pet,mutations,exclusionary) then
+			table.insert(output,i)
+		end
+	end
+	table.sort(output,function(v1,v2) 
+			return data.PetsData.PetInventory.Data[v1:GetAttribute('PET_UUID')].PetData.BaseWeight > data.PetsData.PetInventory.Data[v2:GetAttribute('PET_UUID')].PetData.BaseWeight 
+		end)
+	return output
+end
+
+local function mutate_qualifying_pet()
+	for _,v in ipairs(pets_to_mutate) do
+		local output = match_backpack_pets(true,table.unpack(v))
+		if output[1] then
+			hold_tool(output[1],1)
+			mumachine('SubmitHeldPet')
+			return
+		end
+	end
+end
+
+local function equip_qualifying_pets(n)
+	for _,v in ipairs(pets_to_equip) do
+		local output = match_backpack_pets(false,table.unpack(v))
+		if output[1] then
+			equip_pets(table.pack(table.unpack(output,1,n)))
+			n = n - #output
+			if n <= 0 then
+				return
+			end
+		end
+	end
+end
+
+local mut_pets_last = 0.0
+local mut_pets_cycle_length = 2
+local function equip_and_mutate_pets()
+	if (os.clock() - mut_pets_last) < mut_pets_cycle_length then return end
+	mut_pets_last = os.clock()
+	start_mutation_machine()
+	if not data.PetMutationMachine.SubmittedPet and (not holding_tool or (hold_tool_timeout < os.clock())) then
+		mutate_qualifying_pet()
+	end
+	if #data.PetsData.EquippedPets < data.PetsData.MutableStats.MaxEquippedPets then
+		equip_qualifying_pets(data.PetsData.MutableStats.MaxEquippedPets-#data.PetsData.EquippedPets)
+	end
+	local to_unequip = {}
+	for _,v in ipairs(pets_to_unequip) do
+		match_equipped_pets(to_unequip,table.unpack(v))
+	end
+	if to_unequip[1] then
+		unequip_pets(to_unequip)
+		equip_qualifying_pets(#to_unequip)
+	end
+end
+
+
+
+
+
+
+
 function get_fruit_from_groups(groups,n,output)
   local count = 0
   for _,v in ipairs(groups) do
@@ -532,7 +661,7 @@ end
 
 local collect_fruit_last = 0.0
 local collect_fruit_cycle_length = 2
-local fruits_to_collect = {{'Cacao',5,10}}
+local fruits_to_collect = {{'Cacao',5,5}}
 local function count_fruit_in_inventory(fruit)
 	local count = 0
 	for i in pairs(inventory_items.j) do
@@ -656,6 +785,23 @@ add_inv_listener({'l'},'formatpetnames',function(v)
 	v.Name = format_pet_name(v:GetAttribute('PET_UUID')) or v.Name
 end)
 start_farm_listener()
+
+add_pet_qualifier('m','Brontosaurus',1.74,2.5,{'b','c','n'},true)
+add_pet_qualifier('a','Brontosaurus',1.74,2.5,{'b','c'})
+add_pet_qualifier('m','Bald Eagle',1.14,2.5,{'c','n'},true)
+add_pet_qualifier('a','Bald Eagle',1.14,2.5,{'c'})
+add_pet_qualifier('m','Brontosaurus',1.2,1.75,{'c','n'},true)
+add_pet_qualifier('a','Brontosaurus',1.2,1.75,{'c'})
+add_pet_qualifier('m','Scarlet Macaw',9,100,{'c','n','i'},true)
+add_pet_qualifier('a','Koi',1.18,2.5,{'c'})
+add_pet_qualifier('m','Koi',1.18,2.5,{'c'},true)
+add_pet_qualifier('m','Phoenix',0.95,2.5,{'c','n'},true)
+add_pet_qualifier('a','Phoenix',0.95,2.5,{'c'})
+add_pet_qualifier('a','Seal',1.9,100,{},true)
+add_pet_qualifier('m','Seal',1.7,1.9,{'b','c','n'},true)
+add_pet_qualifier('a','Seal',1.7,1.9,{'b','c'})
+add_pet_qualifier('m','Seal',1.59,1.7,{'c','n'},true)
+add_pet_qualifier('a','Seal',1.59,1.7,{'c'})
 local run
 run = RunService.Heartbeat:Connect(function(dt)
 	if character:FindFirstChild('Shovel [Destroy Plants]') then 
@@ -666,6 +812,7 @@ run = RunService.Heartbeat:Connect(function(dt)
 		Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = 'script stopped'
 		return 
 	end
+	equip_and_mutate_pets()
 	do_fall_event()
 	auto_rebirth()
 	collect_fruit_simple()
