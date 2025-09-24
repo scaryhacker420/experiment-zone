@@ -512,6 +512,34 @@ function FindAttributeMatchInGroups(groups,n,pos_muts,neg_muts,output,pos_any)
 	end
 end
 
+local collect_fruit_last = 0.0
+local collect_fruit_cycle_length = 2
+local fruits_to_collect = {{'Cacao',5,10}}
+local function count_fruit_in_inventory(fruit)
+	local count = 0
+	for i in pairs(inventory_items.j) do
+		if i:GetAttribute('f') == fruit then
+			count = count + 1
+		end
+	end
+	return count
+end
+function collect_fruit_simple()
+  	if (os.clock() - collect_fruit_last) < collect_fruit_cycle_length then return end
+	collect_fruit_last = os.clock()
+	local frutbatch = {}
+	for _,v in ipairs(fruits_to_collect) do
+		if v[2] then
+			if count_fruit_in_inventory(v[1]) < v[2] then
+				get_fruit_from_groups({v[1]},v[3],frutbatch)
+			end
+		else
+			get_fruit_from_groups(v[1],10,frutbatch)
+		end
+	end
+	collect_fruit_batch(frutbatch)
+end
+
 local rebirth_cycle_last = -10
 local rebirth_cycle_length = 10
 local rebirth_reset_time = require(ReplicatedStorage.Data.RebirthConfigData).RESET_TIME
@@ -622,5 +650,6 @@ run = RunService.Heartbeat:Connect(function(dt)
 	end
 	do_fall_event()
 	auto_rebirth()
+	collect_fruit_simple()
 	Players.LocalPlayer.PlayerGui.Sheckles_UI.TextLabel.Text = falloutput .. '\n' .. rebirth_output
 end)
