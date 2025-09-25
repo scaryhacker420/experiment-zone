@@ -789,7 +789,7 @@ function FindAttributeMatchInGroups(groups,n,pos_muts,neg_muts,output,pos_any)
 	local count = 0
 	for _,t in ipairs(groups) do
 		for object in pairs(t) do 
-			if (pos_any and (attributeMatch(object,nil,neg_muts) and not attributeMatch(object,nil,pos_muts)) or attributeMatch(object,pos_muts,neg_muts)) then
+			if (pos_any and (attributeMatch(object,nil,neg_muts) and not attributeMatch(object,nil,pos_muts))) or (not pos_any and attributeMatch(object,pos_muts,neg_muts)) then
 				count = count + 1
 				table.insert(output,object)
 				if count >= n then 
