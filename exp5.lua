@@ -220,6 +220,7 @@ function diconec_farm_listener()
 end 
 
 local inventory_listener
+local held_item_listener
 local item_parent_listeners = {}
 local inventory_items = {}
 local inventory_items_map = {}
@@ -252,6 +253,9 @@ end
 
 local function diconec_inventory_listener()
 	inventory_listener:Disconnect()
+	held_item_listener:Disconnect()
+	inventory_listener = nil
+	held_item_listener = nil
 	for _,v in pairs(item_parent_listeners) do
 		v:Disconnect()
 	end
@@ -298,6 +302,12 @@ local function start_inventry_listener()
 		end
 		create_item_parent_listener(item)
 		add_item(item)
+	end)
+	held_item_listener = character.ChildAdded:Connect(function(item)
+		if not item_parent_listeners[item] then
+			create_item_parent_listener(item)
+			add_item(item)
+		end
 	end)
 	for _,item in ipairs(user.Backpack:GetChildren()) do
 		create_item_parent_listener(item)
@@ -451,6 +461,8 @@ end
 local pets_to_equip = {}
 local pets_to_unequip = {}
 local pets_to_mutate = {}
+local aging_pets_loadout = {}
+local aging_pets_loadout_map = {}
 
 local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations,make_mutations_inverse)
 	local equip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
@@ -587,7 +599,7 @@ end
 local function match_equipped_pets(output,type,agelower,agehigher,bwlower,bwhigher,mutations,exclusionary)
 	for _,v in ipairs(data.PetsData.EquippedPets) do
 		local pet = data.PetsData.PetInventory.Data[v]
-		if pet.PetType == type and pet.PetData.Level >= agelower and pet.PetData.Level <= agehigher and
+		if pet.PetType == type and not aging_pets_loadout_map[i] and pet.PetData.Level >= agelower and pet.PetData.Level <= agehigher and
 		pet.PetData.BaseWeight >= bwlower and pet.PetData.BaseWeight <= bwhigher and
 		check_mutation(pet,mutations,exclusionary) then
 			table.insert(output,v)
@@ -761,7 +773,11 @@ function do_fall_event()
 	if reqtrait and traitsdata[reqtrait] then
 	  	if not progress_label.Text:find('Cooldown') and (299 - DateTime.now().UnixTimestamp + data.FallMarket.LastRewardClaimedTime) <= 0 then
 			local frutbatch = {}
-			get_fruit_from_groups(traitsdata[reqtrait],10,frutbatch)
+			local groups_to_collect = {}
+			for _,v in ipairs(traitsdata[reqtrait]) do
+				if trees[v] then table.insert(groups_to_collect,v) end
+			end
+			get_fruit_from_groups(groups_to_collect,10,frutbatch)
 			collect_fruit_batch(frutbatch)
 			ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("FallMarketEvent"):WaitForChild("SubmitAllPlants"):FireServer()
 	 	 end
