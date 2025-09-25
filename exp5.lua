@@ -57,6 +57,15 @@ end
 local theplants = player_farm.Important.Plants_Physical 
 
 
+function getddsize(dicdic,keys)
+  local size = 0
+  for _,v in ipairs(keys) do
+    for _ in pairs(dicdic[v]) do
+      size = size + 1
+    end
+  end
+  return size
+end
 
 local function unequip_tools()
 	for i,v in ipairs(character:GetChildren()) do
@@ -387,6 +396,8 @@ PetStatValues.Koi = {['']={3,0.22,8,50}}
 PetStatValues.Brontosaurus = {['']={5.25,0.1,30,30}}
 PetStatValues.Phoenix = {['max age bonus']={4.8,0.1}}
 
+
+
 local function get_mutation_passive_boost(pet)
 	if pet.PetData.MutationType and PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostType == 'PASSIVE_BOOST' then
 		return PetMutationRegistry.PetMutationRegistry[PetMutationRegistry.EnumToPetMutation[pet.PetData.MutationType] ].Boosts[1].BoostAmount
@@ -471,7 +482,7 @@ end
 
 local function equip_pets(pets)
 	for _,v in ipairs(pets) do 
-		ReplicatedStorage.GameEvents.PetsService:FireServer('EquipPet',v:GetAttribute('PET_UUID'),player_farm.Center_Point.CFrame)
+		ReplicatedStorage.GameEvents.PetsService:FireServer('EquipPet',(type(v) == 'string') and v or v:GetAttribute('PET_UUID'),player_farm.Center_Point.CFrame)
 	end
 end
 
@@ -479,10 +490,85 @@ local function mumachine(arg)
 	ReplicatedStorage.GameEvents.PetMutationMachineService_RE:FireServer(arg)
 end
 
-local function start_mutation_machine()
-	if data.PetMutationMachine.SubmittedPet and data.PetMutationMachine.PetReady == true then
+local function check_val_in_array(array,val)
+	for _,v in ipairs(array) do
+		if v == val then return true end
+	end
+	return false
+end
+
+local function check_equipped_pets(loadout)
+	for _,v in ipairs(loadout) do
+		if not check_val_in_array(data.PetsData.EquippedPets,v) then
+			return false
+		end
+	end
+	return true
+end
+			
+
+local phoenix_loadout = {}
+local old_loadout = {}
+local using_phoenix_loadout
+local phoenix_loadout_timout_time = 0
+local function make_phoenix_loadout()
+	local phoenixes = {}
+	local phoenix_id_to_stat = {}
+	for i,v in pairs(data.PetsData.PetInventory.Data) do
+		if v.PetType == 'Phoenix' then
+			table.insert(phoenixes,i)
+			phoenix_id_to_stat[i] = math.min(calculate_pet_weight(v) * 0.1 + calc_passive_mult(v) * 4.8, 10) 
+		elseif v.PetType == 'Rainbow Phoenix' then
+			table.insert(phoenixes,i)
+			phoenix_id_to_stat[i] = math.min(calculate_pet_weight(v) * 0.1 + calc_passive_mult(v) * 5.8, 10) + 1
+		end
+	end
+	if not phoenixes[1] then return false end
+	table.sort(phoenixes,function(v1,v2) return phoenix_id_to_stat[v1] > phoenix_id_to_stat[v2] end)
+	phoenix_loadout = table.pack(table.unpack(phoenixes,1,data.PetsData.MutableStats.MaxEquippedPets))
+	return true
+end
+
+local function stop_using_phoenix_loadout()
+	using_phoenix_loadout = nil
+	unequip_pets(phoenix_loadout)
+	equip_pets(old_loadout)
+	phoenix_loadout = {}
+	old_loadout = {}
+	phoenix_loadout_timout_time = 0
+end
+
+local function use_phoenix_loadout()
+	if check_equipped_pets(phoenix_loadout) then
 		mumachine('ClaimMutatedPet')
 		mumachine('StartMachine')
+		stop_using_phoenix_loadout()
+		return
+	end
+	if os.clock() > phoenix_loadout_timout_time then
+		print('phoenix timeout')
+		mumachine('ClaimMutatedPet')
+		mumachine('StartMachine')
+		stop_using_phoenix_loadout()
+	end
+end
+
+
+
+local function start_mutation_machine()
+	if data.PetMutationMachine.SubmittedPet and data.PetMutationMachine.PetReady == true then
+		if make_phoenix_loadout() == true then
+			using_phoenix_loadout = true
+			phoenix_loadout_timout_time = os.clock() + 15
+			for _,v in ipairs(data.PetsData.EquippedPets,v) do
+				table.insert(old_loadout,v)
+			end
+			unequip_pets(old_loadout)
+			equip_pets(phoenix_loadout)
+		else
+			mumachine('ClaimMutatedPet')
+			mumachine('StartMachine')
+		end
 	elseif data.PetMutationMachine.PetReady == false and data.PetMutationMachine.IsRunning == false then
 		mumachine('StartMachine')
 	end
@@ -553,6 +639,7 @@ end
 local mut_pets_last = 0.0
 local mut_pets_cycle_length = 2
 local function equip_and_mutate_pets()
+	if using_phoenix_loadout then use_phoenix_loadout() return end
 	if (os.clock() - mut_pets_last) < mut_pets_cycle_length then return end
 	mut_pets_last = os.clock()
 	start_mutation_machine()
@@ -573,6 +660,69 @@ local function equip_and_mutate_pets()
 end
 
 
+
+
+
+
+local pets_to_sell = {}
+local eggs_to_hatch_koi = {}
+local eggs_to_hatch_bronto = {}
+local auto_hatch_last = 0.0
+local auto_hatch_cycle_length = 0.1
+local auto_hatch_sell_check_interval = 5
+local auto_hatch_sell_check_last = 0
+local auto_hatch_paused
+local auto_hatch_step
+local egg_types_to_place = {}
+local egg_hatch_rules = {}
+local egg_tools = {}
+local hatch_loadout = {}
+local koi_loadout = {}
+local bronto_loadout = {}
+local seal_loadout = {}
+local lock_pet_loadout
+local lock_pet_loadout_timeout
+
+local function make_koi_loadout()
+
+end
+local function make_bronto_loadout()
+
+end
+local function make_seal_loadout()
+
+end
+
+local function check_if_eggs_is_ready()
+
+end
+
+
+
+auto_hatch_eggs = {}
+function auto_hatch_eggs.hatch()
+end
+
+function auto_hatch_eggs.sell()
+end
+
+
+function auto_hatch_eggs.main()
+	if (os.clock() - auto_hatch_last) < auto_hatch_cycle_length then return end
+	auto_hatch_last = os.clock()
+	if auto_hatch_paused then print(auto_hatch_paused) return end
+	if auto_hatch_step and auto_hatch_eggs[auto_hatch_step] then
+		auto_hatch_eggs[auto_hatch_step]()
+	elseif (os.clock() - auto_hatch_sell_check_last) > auto_hatch_sell_check_interval then
+		auto_hatch_sell_check_last = os.clock()
+		if getddsize(data.PetsData.PetInventory,{'Data'}) + 13 >= data.PetsData.MutableStats.MaxPetsInInventory then
+			auto_hatch_step = 'sell'
+			return
+		end
+	elseif check_if_eggs_is_ready() then
+		auto_hatch_step = 'hatch'
+	end
+end
 
 
 
@@ -599,15 +749,6 @@ end
 
 
 
-function getddsize(dicdic,keys)
-  local size = 0
-  for _,v in ipairs(keys) do
-    for _ in pairs(dicdic[v]) do
-      size = size + 1
-    end
-  end
-  return size
-end
 
 local fall_cycle_last = 0.0
 local fall_cycle_length = 0.2
@@ -795,8 +936,8 @@ add_pet_qualifier('a','Brontosaurus',1.2,1.75,{'c'})
 add_pet_qualifier('m','Scarlet Macaw',9,100,{'c','n','i'},true)
 add_pet_qualifier('a','Koi',1.18,2.5,{'c'})
 add_pet_qualifier('m','Koi',1.18,2.5,{'c'},true)
-add_pet_qualifier('m','Phoenix',0.95,2.5,{'c','n'},true)
-add_pet_qualifier('a','Phoenix',0.95,2.5,{'c'})
+add_pet_qualifier('m','Phoenix',0,2.5,{'c','n'},true)
+add_pet_qualifier('a','Phoenix',0,2.5,{'c'})
 add_pet_qualifier('a','Seal',1.8,100,{},true)
 add_pet_qualifier('m','Seal',1.7,1.8,{'b','c','n'},true)
 add_pet_qualifier('a','Seal',1.7,1.8,{'b','c'})
