@@ -295,6 +295,12 @@ local function start_inventry_listener()
 	inventory_items['other'] = {}
 	inv_group_to_listener_names['other'] = {}
 	inventory_listener = user.Backpack.ChildAdded:Connect(function(item)
+		if not item_parent_listeners[item] then
+			create_item_parent_listener(item)
+			add_item(item)
+		end
+	end)
+	held_item_listener = character.ChildAdded:Connect(function(item)
 		if item_parent_listeners[item] then
 			item_parent_listeners[item]:Disconnect()
 			item_parent_listeners[item] = nil
@@ -302,12 +308,6 @@ local function start_inventry_listener()
 		end
 		create_item_parent_listener(item)
 		add_item(item)
-	end)
-	held_item_listener = character.ChildAdded:Connect(function(item)
-		if not item_parent_listeners[item] then
-			create_item_parent_listener(item)
-			add_item(item)
-		end
 	end)
 	for _,item in ipairs(user.Backpack:GetChildren()) do
 		create_item_parent_listener(item)
@@ -675,25 +675,42 @@ end
 
 
 
+local function find_tool(group,att,value)
+	for i in pairs(inventory_items) do
+		if i:GetAttribute(att) == value then
+			return i
+		end
+	end
+end
+
 
 local pets_to_sell = {}
+local pets_to_favorite = {}
 local eggs_to_hatch_koi = {}
 local eggs_to_hatch_bronto = {}
+local egg_cords = {}
 local auto_hatch_last = 0.0
 local auto_hatch_cycle_length = 0.1
 local auto_hatch_sell_check_interval = 5
 local auto_hatch_sell_check_last = 0
 local auto_hatch_paused
 local auto_hatch_step
-local egg_types_to_place = {}
-local egg_hatch_rules = {}
-local egg_tools = {}
+local egg_types_to_place_in_order = {'Common Egg'}
 local hatch_loadout = {}
 local koi_loadout = {}
 local bronto_loadout = {}
 local seal_loadout = {}
 local lock_pet_loadout
 local lock_pet_loadout_timeout
+
+local function get_all_egg_cords()
+	for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
+		if v:GetAttribute('OBJECT_TYPE') == 'PetEgg' then
+			table.insert(egg_cords,vector.create(v.WorldPivot.x,v.WorldPivot.y,v.WorldPivot.z))
+		end
+	end
+end
+
 
 local function make_koi_loadout()
 
@@ -705,24 +722,179 @@ local function make_seal_loadout()
 
 end
 
-local function check_if_eggs_is_ready()
+local function hatch_egg_bronto(egg,threashold)
+	if egg.Data.BaseWeight >= threashold then
+	end
+end
+local egg_hatch_rules = {
+	['Common Egg'] = {
+		['Bunny'] = 2.5*0.699,
+		['Dog'] = 2.5*0.699,
+		['Golden Lab'] = 2.5*0.699
+	}}
 
+local function pet_sell_or_fav(pet,threashold)
+	if data.PetsData.PetInventory.Data[pet:GetAttribute('PET_UUID')].PetData.BaseWeight < threashold then
+		table.insert(pets_to_sell,pet)
+	else
+		favorite_item(pet)
+	end
 end
 
+local pet_sell_rules = {
+	['Bunny'] = {pet_sell_or_fav,2.5*0.699},
+	['Dog'] = {pet_sell_or_fav,2.5*0.699},
+	['Golden Lab'] = {pet_sell_or_fav,2.5*0.699}
+}
 
+local function new_pet_listener(pet)
+	local pet_data = data.PetsData.PetInventory.Data[pet:GetAttribute('PET_UUID')]
+	if pet_data and pet_sell_rules[pet_data.PetType] then
+		pet_sell_rules[pet_data.PetType][1](pet,pet_sell_rules[pet_data.PetType][2])
+	end
+end
+	
+	
+local function check_if_eggs_is_ready()
+	for _,obj in pairs(data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects) do
+		if obj.ObjectType == 'PetEgg' and egg_hatch_rules[obj.Data.EggName] and not obj.Data.BaseWeight then
+			return false
+		end
+	end
+	for _,obj in pairs(data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects) do
+		if obj.ObjectType == 'PetEgg' and egg_hatch_rules[obj.Data.EggName] and egg_hatch_rules[obj.Data.EggName][obj.Data.Type] then
+			for _,rule in egg_hatch_rules[obj.Data.EggName][obj.Data.Type] do
+				if rule[1](obj,unpack(rule[2])) then
+					break
+				end
+			end
+		end
+	end
+	return true
+end
+
+local function switch_pet_loadout(loadout)
+	for _,v in ipairs(loadout) do
+		if not data.PetsData.PetInventory.Data[v] then
+			return 'missing'
+		end		
+	end
+	local equipped_count = 0
+	for _,v in ipairs(data.PetsData.EquippedPets) do
+		if not check_val_in_array(loadout,v) then
+			ReplicatedStorage.GameEvents.PetsService:FireServer('UnequipPet',v)
+		else	
+			equipped_count = equipped_count + 1
+		end	
+	end
+	if equiped_count == #loadout then
+		return true
+	end
+	equip_pets(loadout)
+	return false
+end
+
+local function place_down_eggs()
+	local egg_tool
+	for _,egg_type in ipairs(egg_types_to_place_in_order) do
+		for _,egg in ipairs(inventory_items.c) do
+			if egg:GetAttribute(h) == egg_type then
+				hold_tool(egg,0.6)
+				for _,cord in ipairs(egg_cords) do
+					ReplicatedStorage.GameEvents.PetEggService:FireServer('CreateEgg',v)
+				end
+				return
+			end
+		end
+	end
+end
+
+local function count_placed_eggs()
+	local count = 0
+	for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
+		if v:GetAttribute('OBJECT_TYPE') == 'PetEgg' then
+			count = count + 1
+		end
+	end
+	return count
+end
 
 auto_hatch_eggs = {}
 function auto_hatch_eggs.hatch()
+	if next(eggs_to_hatch_bronto) then
+		local switch_pets = switch_pet_loadout(bronto_loadout)
+		if switch_pets == 'missing' then auto_hatch_paused = 'missing bronto' return end
+		if switch_pets then
+			for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
+				if eggs_to_hatch_bronto[v:GetAttribute('OBJECT_UUID')] then
+					ReplicatedStorage.GameEvents.PetEggService:FireServer('HatchPet',v)
+				end
+			end
+			eggs_to_hatch_bronto = {}
+		end
+	elseif next(eggs_to_hatch_koi) then
+		local switch_pets = switch_pet_loadout(koi_loadout)
+		if switch_pets == 'missing' then auto_hatch_paused = 'missing koi' return end
+		if switch_pets then
+			for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
+				if eggs_to_hatch_koi[v:GetAttribute('OBJECT_UUID')] then
+					ReplicatedStorage.GameEvents.PetEggService:FireServer('HatchPet',v)
+				end
+			end
+			eggs_to_hatch_koi = {}
+		end
+	else
+		place_down_eggs()
+		local switch_pets = switch_pet_loadout(hatch_loadout)
+		if switch_pets == 'missing' then auto_hatch_paused = 'missing hatch loadout' return end
+		auto_hatch_last = auto_hatch_last + 1
+		if switch_pets == true and count_eggs >= #egg_cords then
+			auto_hatch_step = nil
+		end
+	end	
 end
 
 function auto_hatch_eggs.sell()
+	if pets_to_sell[1] then
+		local switch_pets = switch_pet_loadout(seal_loadout)
+		if switch_pets == 'missing' then auto_hatch_paused = 'missing seals' return end
+		if switch_pets == true and (holding_tool == nil or hold_tool_timeout < os.clock()) then
+			local pet_to_sell
+			while pets_to_sell[1] do
+				pet_to_sell = find_tool(inventory_items[l],'PET_UUID',pets_to_sell[1])
+				if pet_to_sell then
+					break
+				end
+				table.remove(pets_to_sell,1)
+			end
+			if pet_to_sell then
+				hold_tool(pet_to_sell)
+				ReplicatedStorage.GameEvents.SellPet_RE:FireServer()
+			end	
+		end
+	else
+		local switch_pets = switch_pet_loadout(hatch_loadout)
+		if switch_pets == 'missing' then auto_hatch_paused = 'missing hatch loadout' return end
+		if switch_pets == true then
+			auto_hatch_step = nil
+		end
+	end	
 end
 
+function auto_hatch_eggs.favorite()
+	for i in pairs(inventory_items) do
+		if i:GetAttribute('PET_UUID') and pets_to_favorite[i:GetAttribute('PET_UUID')] then
+			favorite_item(i)
+			pets_to_favorite[i:GetAttribute('PET_UUID')] = nil
+		end
+	end
+end
 
 function auto_hatch_eggs.main()
-	if (os.clock() - auto_hatch_last) < auto_hatch_cycle_length then return end
-	auto_hatch_last = os.clock()
+	if os.clock() > auto_hatch_last then return end
+	auto_hatch_last = os.clock() + auto_hatch_cycle_length
 	if auto_hatch_paused then print(auto_hatch_paused) return end
+	if next(pets_to_favorite) then auto_hatch_eggs.favorite() end
 	if auto_hatch_step and auto_hatch_eggs[auto_hatch_step] then
 		auto_hatch_eggs[auto_hatch_step]()
 	elseif (os.clock() - auto_hatch_sell_check_last) > auto_hatch_sell_check_interval then
@@ -883,7 +1055,7 @@ function auto_rebirth()
 	rebirth_cycle_last = os.clock()
 	local req_plant = data.RebirthData.RequiredPlants[1].FruitName
 	local req_mutations = data.RebirthData.RequiredPlants[1].Mutations
-	if not required_fruit or required_fruit:GetAttribute('f') ~= req_plant or not attributeMatch(required_fruit,req_mutations) then
+	if not required_fruit or not(required_fruit.Parent == charcter or required_fruit.Parent == user.Backpack) or required_fruit:GetAttribute('f') ~= req_plant or not attributeMatch(required_fruit,req_mutations) then
 		if required_fruit then
 			unsave_required_rebirth_fruit()
 		end
@@ -959,6 +1131,11 @@ add_pet_qualifier('m','Seal',1.7,1.8,{'b','c','n'},true)
 add_pet_qualifier('a','Seal',1.7,1.8,{'b','c'})
 add_pet_qualifier('m','Seal',1.59,1.7,{'c','n'},true)
 add_pet_qualifier('a','Seal',1.59,1.7,{'c'})
+
+make_koi_loadout()
+make_seal_loadout()
+make_bronto_loadout()
+get_all_egg_cords()
 local run
 run = RunService.Heartbeat:Connect(function(dt)
 	if character:FindFirstChild('Shovel [Destroy Plants]') then 
