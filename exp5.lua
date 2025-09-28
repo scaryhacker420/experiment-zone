@@ -901,7 +901,7 @@ function auto_hatch_eggs.hatch()
 		if switch_pets then
 			for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
 				if eggs_to_hatch_bronto[v:GetAttribute('OBJECT_UUID')] then
-					print(string.format('hatched %s %.3fkg',data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects[v:GetAttribute('OBJECT_UUID')].Data.Type,data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects[v:GetAttribute('OBJECT_UUID')].Data.BaseWeight*1.1*1.3))
+					print(string.format('hatched %s %.3fkg (bronto)',data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects[v:GetAttribute('OBJECT_UUID')].Data.Type,data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects[v:GetAttribute('OBJECT_UUID')].Data.BaseWeight*1.1*1.3))
 					ReplicatedStorage.GameEvents.PetEggService:FireServer('HatchPet',v)
 				end
 			end
