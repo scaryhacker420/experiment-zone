@@ -786,7 +786,7 @@ local egg_hatch_rules = {
 		['Tanuki'] = 2.9*0.699,
 		['Kappa'] = 2.9*0.699,
 		['Tanchozuru'] = 2.9*0.699,
-		['Kitsune'] = 2*0.699,
+		['Kitsune'] = 2.2*0.699,
 	}
 }
 
@@ -935,7 +935,7 @@ function auto_hatch_eggs.sell()
 		local switch_pets = switch_pet_loadout(seal_loadout)
 		if switch_pets == 'missing' then auto_hatch_paused = 'missing seals' return end
 		if switch_pets == true and (holding_tool == nil or hold_tool_timeout < os.clock()) then
-			while pets_to_sell[1] and not (pets_to_sell[1].Parent == character or pets_to_sell[1].Parent == user.Backpack or pets_to_sell[1]:GetAttribute('d') == true) do
+			while pets_to_sell[1] and ((not (pets_to_sell[1].Parent == character or pets_to_sell[1].Parent == user.Backpack)) or pets_to_sell[1]:GetAttribute('d') == true) do
 				table.remove(pets_to_sell,1)
 			end
 			if pets_to_sell[1] then
