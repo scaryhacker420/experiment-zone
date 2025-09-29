@@ -684,6 +684,7 @@ local bronto_loadout = {}
 local seal_loadout = {}
 local lock_pet_loadout
 local lock_pet_loadout_timeout
+local eggs_in_inv_last = 0
 
 local function get_all_egg_cords()
 	for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
@@ -844,6 +845,13 @@ local function check_if_eggs_is_ready()
 			end
 		end
 	end
+	for _,egg_type in ipairs(egg_types_to_place_in_order) do
+		for egg in pairs(inventory_items.c) do
+			if egg:GetAttribute('h') == egg_type then
+				eggs_in_inv_last = egg:GetAttribute('e') or 0
+			end
+		end
+	end
 	return true
 end
 
@@ -924,11 +932,12 @@ function auto_hatch_eggs.hatch()
 			eggs_to_hatch_koi = {}
 		end
 	else
-		place_down_eggs())
+		place_down_eggs()
 		local switch_pets = switch_pet_loadout(hatch_loadout)
 		if switch_pets == 'missing' then auto_hatch_paused = 'missing hatch loadout' return end
 		auto_hatch_last = auto_hatch_last + 1
 		if switch_pets == true and ((count_placed_eggs() >= #egg_cords) or not place_down_eggs()) then
+			print(eggs_in_inv_last - egg:GetAttribute('e'))
 			auto_hatch_step = nil
 		end
 	end	
