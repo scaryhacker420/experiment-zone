@@ -877,10 +877,11 @@ local function place_down_eggs()
 				for _,cord in ipairs(egg_cords) do
 					ReplicatedStorage.GameEvents.PetEggService:FireServer('CreateEgg',cord)
 				end
-				return
+				return true
 			end
 		end
 	end
+	return false
 end
 
 local function count_placed_eggs()
@@ -914,7 +915,7 @@ function auto_hatch_eggs.hatch()
 			for _,v in ipairs(player_farm.Important.Objects_Physical:GetChildren()) do
 				if eggs_to_hatch_koi[v:GetAttribute('OBJECT_UUID')] then
 					local petdata = data.SaveSlots.AllSlots[data.SaveSlots.SelectedSlot].SavedObjects[v:GetAttribute('OBJECT_UUID')].Data
-					if not pet_sell_rules[petdata.Type] or petdata.BaseWeight*1.1 > pet_sell_rules[petdata.Type] then
+					if not pet_sell_rules[petdata.Type] or petdata.BaseWeight*1.1 > pet_sell_rules[petdata.Type][2] then
 						print(string.format('hatched %s %.3fkg',petdata.Type,petdata.BaseWeight*1.1))
 					end
 					ReplicatedStorage.GameEvents.PetEggService:FireServer('HatchPet',v)
@@ -923,11 +924,11 @@ function auto_hatch_eggs.hatch()
 			eggs_to_hatch_koi = {}
 		end
 	else
-		place_down_eggs()
+		place_down_eggs())
 		local switch_pets = switch_pet_loadout(hatch_loadout)
 		if switch_pets == 'missing' then auto_hatch_paused = 'missing hatch loadout' return end
 		auto_hatch_last = auto_hatch_last + 1
-		if switch_pets == true and count_placed_eggs() >= #egg_cords then
+		if switch_pets == true and ((count_placed_eggs() >= #egg_cords) or not place_down_eggs()) then
 			auto_hatch_step = nil
 		end
 	end	
