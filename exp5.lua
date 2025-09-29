@@ -112,13 +112,13 @@ end
 local function addfruit(fruit)
 	fruits[fruit.Name][fruit] = {} 
 	fruits[fruit.Name][fruit].dc = fruit.AncestryChanged:Connect(function(child, parent)
-	    if not parent then
-	      remove_fruit_from_sorted_list(child)
-				for _,v in pairs(fruits[child.Name][child]) do
-					v:Disconnect()
-				end
-	      fruits[child.Name][child] = nil
-	    end
+		if not parent then
+			remove_fruit_from_sorted_list(fruit)
+			for _,v in pairs(fruits[fruit.Name][fruit]) do
+				v:Disconnect()
+			end
+			fruits[fruit.Name][fruit] = nil
+		end
   	end)
 	fruits[fruit.Name][fruit].fav = fruit:GetAttributeChangedSignal('Favorited'):Connect(function()
 		if fruit:GetAttribute('Favorited') == true then remove_fruit_from_sorted_list(fruit) return 
@@ -144,10 +144,10 @@ local function addtree(tree)
 	trees[tree.Name][tree] = {}
 	trees[tree.Name][tree].dc = tree.AncestryChanged:Connect(function(child, parent)
         if not parent then
-			for _,v in pairs(trees[child.Name][child]) do
+			for _,v in pairs(trees[tree.Name][tree]) do
 				v:Disconnect()
 			end
-          	trees[child.Name][child] = nil
+          	trees[tree.Name][tree] = nil
         end
     end) 
 	trees[tree.Name][tree].newfruit = tree.Fruits.ChildAdded:Connect(function(frut)
@@ -849,6 +849,7 @@ local function check_if_eggs_is_ready()
 		for egg in pairs(inventory_items.c) do
 			if egg:GetAttribute('h') == egg_type then
 				eggs_in_inv_last = egg:GetAttribute('e') or 0
+				return true
 			end
 		end
 	end
@@ -937,8 +938,15 @@ function auto_hatch_eggs.hatch()
 		if switch_pets == 'missing' then auto_hatch_paused = 'missing hatch loadout' return end
 		auto_hatch_last = auto_hatch_last + 1
 		if switch_pets == true and ((count_placed_eggs() >= #egg_cords) or not place_down_eggs()) then
-			print(eggs_in_inv_last - egg:GetAttribute('e'))
 			auto_hatch_step = nil
+			for _,egg_type in ipairs(egg_types_to_place_in_order) do
+				for egg in pairs(inventory_items.c) do
+					if egg:GetAttribute('h') == egg_type then
+						print(eggs_in_inv_last - egg:GetAttribute('e'))
+						return
+					end
+				end
+			end
 		end
 	end	
 end
