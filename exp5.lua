@@ -1055,7 +1055,7 @@ local fruits_to_collect = {{'Cacao',2,2},{'Coconut',2,2}}
 local function count_fruit_in_inventory(fruit)
 	local count = 0
 	for i in pairs(inventory_items.j) do
-		if i:GetAttribute('f') == fruit then
+		if i:GetAttribute('f') == fruit and not i:GetAttribute('d') == true then
 			count = count + 1
 		end
 	end
