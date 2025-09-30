@@ -1051,7 +1051,7 @@ end
 
 local collect_fruit_last = 0.0
 local collect_fruit_cycle_length = 2
-local fruits_to_collect = {{'Cacao',5,5}}
+local fruits_to_collect = {{'Cacao',2,2},{'Coconut',2,2},{'Mushroom',5,5},{'Elder Strawberry',3,3},{'Sugar Apple',3,3}}
 local function count_fruit_in_inventory(fruit)
 	local count = 0
 	for i in pairs(inventory_items.j) do
