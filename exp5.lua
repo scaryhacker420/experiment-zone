@@ -509,11 +509,43 @@ local function set_up_pet_mutation()
 		table.insert(xp_pets_loadout,v)
 		xp_pets_loadout_map[v] = true
 	end
-	add_inv_listener({'l'},'giftpets',function(v)
-		delay(2,function() pet_gift_listener(v) end)
-	end)
+	--add_inv_listener({'l'},'giftpets',function(v)
+	--	delay(2,function() pet_gift_listener(v) end)
+	--end)
 end
 
+local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations)
+	local qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations}
+	if qualfier_type:find('100') then
+		qualifier[2] = 1
+		qualifier[3] = 99
+		if target_mutations[1] then
+			qualifier[7] = false
+		else
+			qualifier[7] = true
+		end
+		table.insert(pets_to_equip,table.pack(table.unpack(qualifier)))
+		qualifier[2] = 100
+		qualifier[3] = 100
+		table.insert(pets_to_unequip,table.pack(table.unpack(qualifier)))
+	end
+	if qualfier_type:find('50') then
+		qualifier[2] = 1
+		qualifier[3] = 49
+		qualifier[7] = true
+		table.insert(pets_to_equip,table.pack(table.unpack(qualifier)))
+		qualifier[2] = 50
+		qualifier[3] = 100
+		table.insert(pets_to_unequip,table.pack(table.unpack(qualifier)))
+	end
+	if qualfier_type:find('m') then
+		qualifier[2] = 50
+		qualifier[3] = 100
+		qualifier[7] = true
+		table.insert(pets_to_mutate,table.pack(table.unpack(qualifier)))
+	end
+end
+--[[
 local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations,make_mutations_inverse)
 	local equip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
 	local unequip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
@@ -534,28 +566,7 @@ local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,targe
 		table.insert(pets_to_equip,equip_qualifier)
 	end
 end
-
-local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations,make_mutations_inverse)
-	local equip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
-	local unequip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
-	if qualfier_type == 'm' then
-		equip_qualifier[2] = 1
-		equip_qualifier[3] = 49
-		unequip_qualifier[2] = 50
-		unequip_qualifier[3] = 100
-		table.insert(pets_to_mutate,unequip_qualifier)
-		table.insert(pets_to_unequip,unequip_qualifier)
-		table.insert(pets_to_equip,equip_qualifier)
-	elseif qualfier_type == 'a' then
-		equip_qualifier[2] = 1
-		equip_qualifier[3] = 99
-		unequip_qualifier[2] = 100
-		unequip_qualifier[3] = 100
-		table.insert(pets_to_unequip,unequip_qualifier)
-		table.insert(pets_to_equip,equip_qualifier)
-	end
-end
-
+]]
 
 local function unequip_pets(pets)
 	for _,v in ipairs(pets) do 
@@ -742,8 +753,9 @@ local function use_golems()
 end
 
 local function gift_pet_from_list() 
-	while pets_to_equip[1] 
-
+	while pets_to_equip[1] do
+	end
+end
 local mut_pets_last = 0.0
 local mut_pets_cycle_length = 2
 local function equip_and_mutate_pets()
@@ -754,8 +766,8 @@ local function equip_and_mutate_pets()
 	if not holding_tool or (hold_tool_timeout < os.clock()) then
 		if not data.PetMutationMachine.SubmittedPet then
 			mutate_qualifying_pet()
-		elseif
-			gift_pet_from_list() 
+		--elseif
+		--	gift_pet_from_list() 
 		end
 	end
 	if using_golem_loadout then return end
@@ -917,7 +929,7 @@ local function pet_sell_or_fav(pet,threashold)
 	end
 end
 
-local pet_sell_rules = {
+local pet_sell_rules = { 
 	['Bunny'] = {pet_sell_or_fav,2.9*0.9090909},
 	['Dog'] = {pet_sell_or_fav,2.9*0.9090909},
 	['Golden Lab'] = {pet_sell_or_fav,2.9*0.9090909},
@@ -925,7 +937,7 @@ local pet_sell_rules = {
 	['Nihonzaru'] = {pet_sell_or_fav,2.9*0.9090909},
 	['Tanuki'] = {pet_sell_or_fav,2.9*0.9090909},
 	['Kappa'] = {pet_sell_or_fav,2.9*0.9090909},
-	['Tanchozuru'] = {pet_sell_or_fav,2.9*0.9090909},
+	['Tanchozuru'] = {pet_sell_or_fav,2.9*0.9090909}, 
 }
 
 local function pet_sell_listener(pet)
@@ -1273,20 +1285,23 @@ add_inv_listener({'l'},'formatpetnames',function(v)
 end)
 start_farm_listener()
 
-add_pet_qualifier('m','Brontosaurus',1.74,2.5,{'b','c','n'},true)
-add_pet_qualifier('a','Brontosaurus',1.74,2.5,{'b','c'})
-add_pet_qualifier('m','Bald Eagle',1.14,2.5,{'c','n'},true)
-add_pet_qualifier('a','Bald Eagle',1.14,2.5,{'c'})
-add_pet_qualifier('m','Brontosaurus',1.2,1.75,{'c','n'},true)
-add_pet_qualifier('a','Brontosaurus',1.2,1.75,{'c'})
-add_pet_qualifier('m','Scarlet Macaw',9,100,{'c','n','i'},true)
-add_pet_qualifier('a','Koi',1.18,2.5,{'c'})
-add_pet_qualifier('m','Koi',1.18,2.5,{'c'},true)
-add_pet_qualifier('m','Phoenix',0,2.5,{'c','n'},true)
-add_pet_qualifier('a','Phoenix',0,2.5,{'c'})
-add_pet_qualifier('a','Seal',1.72,100,{},true)
-add_pet_qualifier('m','Seal',1.6,1.72,{'b','c','n'},true)
-add_pet_qualifier('a','Seal',1.6,1.72,{'b','c'})
+local function make_pet_age_rules1()
+	add_pet_qualifier('50m100','Brontosaurus',1.74,2.5,{'b','c','n'})
+	add_pet_qualifier('50m100','Bald Eagle',1.14,2.5,{'c','n'})
+	add_pet_qualifier('50m100','Brontosaurus',1.2,1.75,{'c','n'})
+	add_pet_qualifier('50m100','Scarlet Macaw',9,100,{'c','n','i'})
+	add_pet_qualifier('50m100','Shiba Inu',9,100,{'c','n','i'})
+	add_pet_qualifier('50m100','Tanuki',9,100,{'c','n','i'})
+	add_pet_qualifier('50m100','Kitsune',2.7,100,{'n','i'})
+	add_pet_qualifier('50m100','Nihonzaru',9,100,{'n','i'})
+	add_pet_qualifier('50m100','Koi',1.18,2.5,{'c'})
+	add_pet_qualifier('50m100','Seal',1.72,100,{})
+	add_pet_qualifier('50m100','Phoenix',0,2.5,{'c','n'})
+	add_pet_qualifier('50m100','Phoenix',0,2.5,{'c'})
+	add_pet_qualifier('50m100','Seal',1.6,1.72,{'b','c','n'})
+	add_pet_qualifier('50m100','Grizzly Bear',2.7,100,{'c','n'})
+end
+--make_pet_age_rules1()
 initiate_auto_hatch()
 local run
 run = RunService.Heartbeat:Connect(function(dt)
