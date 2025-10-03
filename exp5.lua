@@ -444,8 +444,96 @@ end
 local pets_to_equip = {}
 local pets_to_unequip = {}
 local pets_to_mutate = {}
-local aging_pets_loadout = {}
-local aging_pets_loadout_map = {}
+local pets_to_gift = {}
+local pet_gift_target = ''
+local xp_pets_loadout = {}
+local xp_pets_loadout_map = {}
+local phoenix_loadout = {}
+local golem_loadout = {}
+local max_peacocks_in_golem_loadout = 3
+local old_loadout = {}
+local using_phoenix_loadout
+local using_golem_loadout
+local pet_gift_rules = {}
+
+local function check_mutation(pet,mutations,exclusionary)
+	local mutation = pet.PetData.MutationType or 'm'
+	for _,v in ipairs(mutations) do
+		if mutation == v then
+			return not exclusionary
+		end
+	end
+	return exclusionary
+end
+
+local function make_golem_loadout()
+	local peacocks = {}
+	local peacock_id_to_stat = {}
+	for i,v in pairs(data.PetsData.PetInventory.Data) do
+		if v.PetType == 'Peacock' then
+			table.insert(peacocks,i)
+			bronto_id_to_stat[i] = calculate_pet_weight(v) * 0.6 + calc_passive_mult(v) * 65
+		end
+	end
+	table.sort(bronto,function(v1,v2) return peacock_id_to_stat[v1] > peacock_id_to_stat[v2] end)
+	peacocks = table.pack(table.unpack(bronto,1,max_peacocks_in_golem_loadout))
+	local golems = {}
+	local golem_id_to_stat = {}
+	for i,v in pairs(data.PetsData.PetInventory.Data) do
+		if v.PetType == 'Golem' then
+			table.insert(golems,i)
+			golem_id_to_stat[i] = math.min(calculate_pet_weight(v) * 0.5 + calc_passive_mult(v) * (250), 8) 
+		end
+	end
+	table.sort(koi,function(v1,v2) return golem_id_to_stat[v1] > golem_id_to_stat[v2] end)
+	golem_loadout = table.pack(table.unpack(peacocks),table.unpack(golems,1,data.PetsData.MutableStats.MaxEquippedPets-#peacocks))
+end
+
+local function pet_gift_listener(pet_tool)
+	if pet_tool:GetAttribute('d') == true then return end
+	local pet = data.PetsData.PetInventory.Data[pet:GetAttribute('PET_UUID')]
+	if pet and pet_gift_rules[pet.PetType] then
+		for _,v in ipairs(pet_gift_rules[pet.PetType]) do
+			if pet.PetData.Level >= v[1] and pet.PetData.Level <= v[2] and
+			pet.PetData.BaseWeight >= v[3] and pet.PetData.BaseWeight <= v[4] and check_mutation(pet,v[5],v[6]) then
+				table.insert(pets_to_gift,pet)
+				return
+			end
+		end
+	end
+end
+
+local function set_up_pet_mutation()
+	make_golem_loadout()
+	for _,v in pairs(data.PetsData.EquippedPets) do
+		table.insert(xp_pets_loadout,v)
+		xp_pets_loadout_map[v] = true
+	end
+	add_inv_listener({'l'},'giftpets',function(v)
+		delay(2,function() pet_gift_listener(v) end)
+	end)
+end
+
+local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations,make_mutations_inverse)
+	local equip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
+	local unequip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
+	if qualfier_type == 'm' then
+		equip_qualifier[2] = 1
+		equip_qualifier[3] = 49
+		unequip_qualifier[2] = 50
+		unequip_qualifier[3] = 100
+		table.insert(pets_to_mutate,unequip_qualifier)
+		table.insert(pets_to_unequip,unequip_qualifier)
+		table.insert(pets_to_equip,equip_qualifier)
+	elseif qualfier_type == 'a' then
+		equip_qualifier[2] = 1
+		equip_qualifier[3] = 99
+		unequip_qualifier[2] = 100
+		unequip_qualifier[3] = 100
+		table.insert(pets_to_unequip,unequip_qualifier)
+		table.insert(pets_to_equip,equip_qualifier)
+	end
+end
 
 local function add_pet_qualifier(qualfier_type,pet_type,a1wlower,a1whigher,target_mutations,make_mutations_inverse)
 	local equip_qualifier = {pet_type,nil,nil,a1wlower*0.909090909,a1whigher*0.909090909,target_mutations,make_mutations_inverse}
@@ -475,14 +563,10 @@ local function unequip_pets(pets)
 	end
 end
 
-local function equip_pets(pets)
+local function equip_pets(pets,spawn_point)
 	for _,v in ipairs(pets) do 
-		ReplicatedStorage.GameEvents.PetsService:FireServer('EquipPet',(type(v) == 'string') and v or v:GetAttribute('PET_UUID'),player_farm.Center_Point.CFrame)
+		ReplicatedStorage.GameEvents.PetsService:FireServer('EquipPet',(type(v) == 'string') and v or v:GetAttribute('PET_UUID'),spawn_point or player_farm.Center_Point.CFrame)
 	end
-end
-
-local function mumachine(arg)
-	ReplicatedStorage.GameEvents.PetMutationMachineService_RE:FireServer(arg)
 end
 
 local function check_val_in_array(array,val)
@@ -490,22 +574,33 @@ local function check_val_in_array(array,val)
 		if v == val then return true end
 	end
 	return false
-end
+end	
 
-local function check_equipped_pets(loadout)
+local function switch_pet_loadout(loadout)
 	for _,v in ipairs(loadout) do
-		if not check_val_in_array(data.PetsData.EquippedPets,v) then
-			return false
-		end
+		if not data.PetsData.PetInventory.Data[v] then
+			return 'missing'
+		end		
 	end
-	return true
+	local equipped_count = 0
+	for _,v in ipairs(data.PetsData.EquippedPets) do
+		if not check_val_in_array(loadout,v) then
+			ReplicatedStorage.GameEvents.PetsService:FireServer('UnequipPet',v)
+		else	
+			equipped_count = equipped_count + 1
+		end	
+	end
+	if equipped_count == #loadout then
+		return true
+	end
+	equip_pets(loadout)
+	return false
 end
-			
 
-local phoenix_loadout = {}
-local old_loadout = {}
-local using_phoenix_loadout
-local phoenix_loadout_timout_time = 0
+local function mumachine(arg)
+	ReplicatedStorage.GameEvents.PetMutationMachineService_RE:FireServer(arg)
+end		
+
 local function make_phoenix_loadout()
 	local phoenixes = {}
 	local phoenix_id_to_stat = {}
@@ -530,31 +625,22 @@ local function stop_using_phoenix_loadout()
 	equip_pets(old_loadout)
 	phoenix_loadout = {}
 	old_loadout = {}
-	phoenix_loadout_timout_time = 0
 end
 
 local function use_phoenix_loadout()
-	if check_equipped_pets(phoenix_loadout) then
+	local switch_pets = switch_pet_loadout(phoenix_loadout)
+	if switch_pets then 
 		mumachine('ClaimMutatedPet')
 		mumachine('StartMachine')
 		stop_using_phoenix_loadout()
 		return
 	end
-	if os.clock() > phoenix_loadout_timout_time then
-		print('phoenix timeout')
-		mumachine('ClaimMutatedPet')
-		mumachine('StartMachine')
-		stop_using_phoenix_loadout()
-	end
 end
-
-
 
 local function start_mutation_machine()
 	if data.PetMutationMachine.SubmittedPet and data.PetMutationMachine.PetReady == true then
 		if make_phoenix_loadout() == true then
 			using_phoenix_loadout = true
-			phoenix_loadout_timout_time = os.clock() + 15
 			for _,v in ipairs(data.PetsData.EquippedPets,v) do
 				table.insert(old_loadout,v)
 			end
@@ -569,20 +655,10 @@ local function start_mutation_machine()
 	end
 end
 
-local function check_mutation(pet,mutations,exclusionary)
-	local mutation = pet.PetData.MutationType or 'm'
-	for _,v in ipairs(mutations) do
-		if mutation == v then
-			return not exclusionary
-		end
-	end
-	return exclusionary
-end
-
 local function match_equipped_pets(output,type,agelower,agehigher,bwlower,bwhigher,mutations,exclusionary)
 	for _,v in ipairs(data.PetsData.EquippedPets) do
 		local pet = data.PetsData.PetInventory.Data[v]
-		if pet.PetType == type and not aging_pets_loadout_map[i] and pet.PetData.Level >= agelower and pet.PetData.Level <= agehigher and
+		if pet.PetType == type and not xp_pets_loadout_map[i] and pet.PetData.Level >= agelower and pet.PetData.Level <= agehigher and
 		pet.PetData.BaseWeight >= bwlower and pet.PetData.BaseWeight <= bwhigher and
 		check_mutation(pet,mutations,exclusionary) then
 			table.insert(output,v)
@@ -629,7 +705,44 @@ local function equip_qualifying_pets(n)
 			end
 		end
 	end
+	if n + #xp_pets_loadout == data.PetsData.MutableStats.MaxEquippedPets then
+		start_using_golems()
+	end
 end
+
+local function check_new_pet_to_age(pet)
+	local pet = data.PetsData.PetInventory.Data[pet:GetAttribute('PET_UUID')]
+	if pet then
+		for _,v in ipairs(pets_to_equip) do
+			if pet.PetType == v[1] and pet.PetData.Level >= v[2] and pet.PetData.Level <= v[3] and
+			pet.PetData.BaseWeight >= v[4] and pet.PetData.BaseWeight <= v[5] and check_mutation(pet,v[6],v[7]) then
+				stop_using_golems()
+			end
+		end
+	end
+end
+
+local function start_using_golems()
+	using_golem_loadout = true
+	unequip_pets(xp_pets_loadout)
+	equip_pets(golem_loadout)
+	add_inv_listener({'l'},'check_new_pets_to_age',function(v)
+		delay(2,function() check_new_pet_to_age(v) end)
+	end)
+end
+
+local function stop_using_golems()
+	using_golem_loadout = nil
+	unequip_pets(golem_loadout)
+	equip_pets(xp_pets_loadout)
+	rm_inv_listener('check_new_pets_to_age')
+end
+
+local function use_golems()
+end
+
+local function gift_pet_from_list() 
+	while pets_to_equip[1] 
 
 local mut_pets_last = 0.0
 local mut_pets_cycle_length = 2
@@ -638,9 +751,14 @@ local function equip_and_mutate_pets()
 	if (os.clock() - mut_pets_last) < mut_pets_cycle_length then return end
 	mut_pets_last = os.clock()
 	start_mutation_machine()
-	if not data.PetMutationMachine.SubmittedPet and (not holding_tool or (hold_tool_timeout < os.clock())) then
-		mutate_qualifying_pet()
+	if not holding_tool or (hold_tool_timeout < os.clock()) then
+		if not data.PetMutationMachine.SubmittedPet then
+			mutate_qualifying_pet()
+		elseif
+			gift_pet_from_list() 
+		end
 	end
+	if using_golem_loadout then return end
 	if #data.PetsData.EquippedPets < data.PetsData.MutableStats.MaxEquippedPets then
 		equip_qualifying_pets(data.PetsData.MutableStats.MaxEquippedPets-#data.PetsData.EquippedPets)
 	end
@@ -810,7 +928,7 @@ local pet_sell_rules = {
 	['Tanchozuru'] = {pet_sell_or_fav,2.9*0.9090909},
 }
 
-local function new_pet_listener(pet)
+local function pet_sell_listener(pet)
 	local pet_data = data.PetsData.PetInventory.Data[pet:GetAttribute('PET_UUID')]
 	if pet_data and pet_sell_rules[pet_data.PetType] then
 		pet_sell_rules[pet_data.PetType][1](pet,pet_sell_rules[pet_data.PetType][2])
@@ -826,7 +944,7 @@ local function initiate_auto_hatch()
 		table.insert(hatch_loadout,v)
 	end
 	add_inv_listener({'l'},'sellorfavpets',function(v)
-		delay(2,function() new_pet_listener(v) end)
+		delay(2,function() pet_sell_listener(v) end)
 	end)
 end
 	
@@ -854,27 +972,6 @@ local function check_if_eggs_is_ready()
 		end
 	end
 	return true
-end
-
-local function switch_pet_loadout(loadout)
-	for _,v in ipairs(loadout) do
-		if not data.PetsData.PetInventory.Data[v] then
-			return 'missing'
-		end		
-	end
-	local equipped_count = 0
-	for _,v in ipairs(data.PetsData.EquippedPets) do
-		if not check_val_in_array(loadout,v) then
-			ReplicatedStorage.GameEvents.PetsService:FireServer('UnequipPet',v)
-		else	
-			equipped_count = equipped_count + 1
-		end	
-	end
-	if equipped_count == #loadout then
-		return true
-	end
-	equip_pets(loadout)
-	return false
 end
 
 local function place_down_eggs()
