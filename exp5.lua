@@ -1047,7 +1047,8 @@ function auto_hatch_eggs.hatch()
 		if switch_pets == 'missing' then auto_hatch_paused = 'missing hatch loadout' return end
 		auto_hatch_last = auto_hatch_last + 1
 		if switch_pets == true and ((count_placed_eggs() >= #egg_cords) or not place_down_eggs()) then
-			auto_hatch_step = nil
+			auto_hatch_step = nil 
+			--[[
 			for _,egg_type in ipairs(egg_types_to_place_in_order) do
 				for egg in pairs(inventory_items.c) do
 					if egg:GetAttribute('h') == egg_type then
@@ -1055,7 +1056,7 @@ function auto_hatch_eggs.hatch()
 						return
 					end
 				end
-			end
+			end ]]
 		end
 	end	
 end
